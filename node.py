@@ -1,33 +1,35 @@
+import simpy
+import logging
+
+logging.basicConfig(filename="node.log", level=logging.INFO, filemode="w")
+
 class Node:
-    def __init__(self):
-        self.id
+    current_id = 0
+    @staticmethod
+    def get_id():
+        id = Node.current_id
+        Node.current_id += 1
+        return id
 
-        self.x
-        self.y
-        self.z
+    def __init__(self, env):
+        self.id = Node.get_id()
+        self.env = env
+        try:
+            self.action = env.process(self.run())
+        except ValueError as err:
+            print(f"Node {self.id}\'s run() method must be overwritten!\nError message: {err}")
 
-        self.linkNum
-        self.packageCount
-        self.GWNum
-        self.GWHop
-        self.random
-        self.sigCount
-        self.pacNum
-        self.speed
-        self.outputCount
+        logging.info(f"Instantiating Node {self.id}")
+        self.x = None
+        self.y = None
+        self.z = None
 
-        self.allDelay = 0.0
-        self.allOneHopDelay = 0.0
+    def run(self):
+        pass
 
-        self.nodeTime
-        self.packageRate
-        self.perTransDelay
-        self.perTransSignalDelay
-        self.energy
 
-        self.transRange = 70.0
-        self.shortestDistance = None # Is initially represented as 9999999 to represent infinity
-
-    def __str__(self):
-        s =  "Node " + self.id + "\n￿￿"
-        s += "x: " + str(self.x) + ", y: " + str(self.y)
+if __name__ == "__main__":
+    pass
+    # env = simpy.Environment()
+    # node = Node(env)
+    # env.run(until=10)
