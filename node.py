@@ -1,10 +1,13 @@
-import simpy
+# import simpy
 import logging
+import packet
+import numpy as np
 from exceptions import RunMethodEmpty
+from abc import ABCMeta, abstractmethod
 
 logging.basicConfig(filename="node.log", level=logging.INFO, filemode="w")
 
-class Node(object):
+class Node(metaclass=ABCMeta):
     current_id = 0
     @staticmethod
     def get_id():
@@ -14,48 +17,88 @@ class Node(object):
 
     def __init__(self, **kwargs):
         self.id = Node.get_id()
+        self.time = 0
         logging.info(f"Instantiating Node {self.id}")
-        self.x = kwargs['x']
-        self.y = kwargs['y']
-        self.z = kwargs['z']
 
-        if 'env' in kwargs.keys():
-            self.env = kwargs['env']
-            try:
-                self.action = self.env.process(self.run())
-            except ValueError as err:
-                raise RunMethodEmpty()
-
-    def add_env(self, env):
-        if self.env:
-            logging.info("Warning: Overwriting env variable")
-            self.env = env
-        else:
-            self.env = env
-            try:
-                self.action = self.env.process(self.run())
-            except RunMethodEmpty as err:
-                raise RunMethodEmpty
-
+    @abstractmethod
     def run(self):
         pass
 
-    def __hash__(self):
-        # Returns the hashed representation of the string
-        return hash(repr(self))
+    def update_time(self):
+        self.time += 1
 
-class MovingNode(Node):
-    """ Simple node object with mobility model """
+class MovementNode(Node):
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__()
+        self.x = kwargs['x']
+        self.y = kwargs['y']
+        self.z = kwargs['z']
         self.mobility_model = kwargs['mobility_model']
 
     def run(self):
-        #TODO: Error case 
-        while True:
-            print(f'Node {self.id} at {self.x, self.y, self.z}')
-            yield self.env.timeout(1)
-            self.x,self.y,self.z = self.mobility_model(self.x, self.y, self.z)
+        self.move()
+
+    def move(self):
+        self.x, self.y, self.z = self.mobility_model(self.x, self.y, self.z)
+
+class TransmittingNode(MovementNode):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.destinations = kwargs['destinations']
+        self.generation_rate = kwargs['generation_rate']
+        self.routing_algorithm = kwargs['routing_algorithm']
+        self.queue = kwargs['queue']
+
+    def run(self):
+        self.move()
+        self.generate()
+        self.update_time()
+        return self.transmit()
+
+    def transmit(self):
+        #TODO: Handle multiple possible transmissions
+        if self.queue:
+            outbound_packet = self.queue.pop()
+            print(f"Sending packet {outbound_packet.id} to Node {outbound_packet.destination}")
+            return outbound_packet
+        else:
+            print("Queue is empty")
+
+    def generate(self):
+        # TODO: DO: How to deal with fraction packet generation rates
+        # TODO: How to deal with different packet sizes
+        # TODO: How to deal with specific destinations
+        print(f"generating")
+        packet_kwargs = {'size': 1,
+                         'source':self.id,}
+        for _ in range(next(self.generation_rate)):
+            rand = np.random.randint(len(self.destinations))
+            destination = self.destinations[rand]
+            path = self.routing_algorithm(destination)
+            packet_kwargs['destination'] = destination
+            packet_kwargs['path'] = path
+
+            self.queue.append(packet.Packet(**packet_kwargs))
+
+
+class ReceivingNode(MovementNode):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def receive(self,packet_object):
+        # Passive node, no need for object detection
+        print(f"Received packet {packet_object.id}")
+
+class ReceivingAndTransmittingNode(TransmittingNode):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def receive(self, packet_object):
+        print(f"Received packet object {packet_object.id}")
+        if not isinstance(packet.Packet, packet_object):
+            print(f"{packet_object} not of type {type(packet.Packet)}")
+        else:
+            self.queue.append(packet_object)
 
 if __name__ == "__main__":
     pass
