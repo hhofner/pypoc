@@ -21,11 +21,18 @@ class Node(metaclass=ABCMeta):
         logging.info(f"Instantiating Node {self.id}")
 
     @abstractmethod
-    def run(self):
+    def run(self, env_time):
         pass
 
     def update_time(self):
         self.time += 1
+
+    def __repr__(self):
+        return(f"{self.__class__.__name__}"
+                f"(ID: {self.id})")
+
+    def __hash__(self):
+        return hash(self.id)
 
 class MovementNode(Node):
     def __init__(self, **kwargs):
@@ -35,11 +42,12 @@ class MovementNode(Node):
         self.z = kwargs['z']
         self.mobility_model = kwargs['mobility_model']
 
-    def run(self):
+    def run(self, env_time):
         self.move()
 
     def move(self):
-        self.x, self.y, self.z = self.mobility_model(self.x, self.y, self.z)
+        if self.mobility_model:
+            self.x, self.y, self.z = self.mobility_model(self.x, self.y, self.z)
 
 class TransmittingNode(MovementNode):
     def __init__(self, **kwargs):
@@ -49,10 +57,11 @@ class TransmittingNode(MovementNode):
         self.routing_algorithm = kwargs['routing_algorithm']
         self.queue = kwargs['queue']
 
-    def run(self):
+    def run(self, env_time):
         self.move()
-        self.generate()
+        self.generate(env_time)
         self.update_time()
+        self.node += 1 # Should this be here?
         return self.transmit()
 
     def transmit(self):
@@ -64,22 +73,34 @@ class TransmittingNode(MovementNode):
         else:
             print("Queue is empty")
 
-    def generate(self):
+    def generate(self, env_time):
         # TODO: DO: How to deal with fraction packet generation rates
         # TODO: How to deal with different packet sizes
         # TODO: How to deal with specific destinations
-        print(f"generating")
+        logging.info(f"{self} generating packet(s)")
         packet_kwargs = {'size': 1,
                          'source':self.id,}
-        for _ in range(next(self.generation_rate)):
+        # TODO: Think more about what exactly should the generation_rate
+        # object be? Should it be a lambda? Or a function? I feel like it needs
+        # a state. Perhaps it should be able to access the internals of the Node class
+        # to be able to make a decision of what the generation rate is? Or perhaps a self
+        # defined class that can be catered to a certain application (typical web browser)
+        # etc ? <-- sounds like a good idea.
+        # for _ in range(next(self.generation_rate)):
+        #     rand = np.random.randint(len(self.destinations))
+        #     destination = self.destinations[rand]
+        #     path = self.routing_algorithm(destination)
+        #     packet_kwargs['destination'] = destination
+        #     packet_kwargs['path'] = path
+        #
+        #     self.queue.append(packet.Packet(**packet_kwargs))
+        for _ in range(self.generation_rate):
             rand = np.random.randint(len(self.destinations))
             destination = self.destinations[rand]
             path = self.routing_algorithm(destination)
             packet_kwargs['destination'] = destination
             packet_kwargs['path'] = path
-
-            self.queue.append(packet.Packet(**packet_kwargs))
-
+            packet_kwargs['transmission_time'] = 1
 
 class ReceivingNode(MovementNode):
     def __init__(self, **kwargs):
@@ -98,7 +119,20 @@ class ReceivingAndTransmittingNode(TransmittingNode):
         if not isinstance(packet.Packet, packet_object):
             print(f"{packet_object} not of type {type(packet.Packet)}")
         else:
+            packet_object.current_node = self.id
             self.queue.append(packet_object)
+
+class SimpleGroundNode(ReceivingAndTransmittingNode):
+    def __init__(self, **kwargs):
+        super().__init__()
+
+class SimpleUAVNode(ReceivingAndTransmittingNode):
+    def __init__(self, **kwargs):
+        super().__init__()
+
+class SimpleSatelliteNode(ReceivingAndTransmittingNode):
+    def __init__(self, **kwargs):
+        super().__init__()
 
 if __name__ == "__main__":
     pass
