@@ -55,8 +55,8 @@ class RunningNetwork(Network):
                 # Collect all outbound packets and call all nodes run() method.
                 for node in self.nodes:
                     possible_packets = node.run(self.env)
-                    if possible_packet:
-                        self.outbound_packets + = list(possible_packet)
+                    if possible_packets:
+                        self.outbound_packets + = list(possible_packets)
 
                 for packet in list(self.outbound_packets):
                     destination = packet.next_hop()
@@ -84,14 +84,14 @@ class RunningNetwork(Network):
         def routing(destination):
             if destination in destination_nodes:
                 return [destination]
-        return route_path
+        return routing
 
 class SimpleSAGIN(RunningNetwork):
     def __init__(self, ebunch=[], env_time=0, **kwargs):
         super().__init__()
 
     def set_up(self):
-        node_kwargs = {'x': 0,
+        node_kwargs = { 'x': 0,
                         'y': 0,
                         'z': 0,
                         'mobility_model': None,
@@ -99,13 +99,19 @@ class SimpleSAGIN(RunningNetwork):
                         'generation_rate': 1,
                         'routing_algorithm': None,
                         'queue': []}
-        # Transmitting Ground Nodes
-        num_transmit_node = 3
-        for _ in range(num_transmit_node):
+
+        # Transmitting Ground Node IDs -> To make connections later
+        transmit_node_ids = []
+        for _ in range(3):
             temp = node.TransmittingNode(node_kwargs)
-            pass
+            transmit_node_ids.append(temp.id)
 
+        relaying_node_ids = []
+        for _ in range(3):
+            temp = node.ReceivingAndTransmittingNode(node_kwargs)
+            relaying_node_ids.append()
 
+        num_receive_node = 3
 
 if __name__ == "__main__":
     print("Starting test network")
