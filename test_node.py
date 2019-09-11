@@ -6,8 +6,8 @@ import exceptions
 class TestBaseNodeMethods(unittest.TestCase):
     def setUp(self):
         self.kwargs = {'x':1,
-                  'y':1,
-                  'z':1, }
+                       'y':1,
+                       'z':1, }
         self.node = node.Node(**self.kwargs)
         self.env = simpy.Environment()
 

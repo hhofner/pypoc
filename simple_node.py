@@ -15,7 +15,9 @@ class Node(object):
         self.queue = []
 
         self.config = {'generation_rate': 0,
-                       'destinations': []}
+                       'destinations': [],
+                       'type': 'node',
+                       'serv_rate': 1}
         self.update(**kwargs)
 
     def update(self, **kwargs):
@@ -23,16 +25,18 @@ class Node(object):
             if key in self.config.keys():
                 if isinstance(kwargs[key], type(self.config[key])):
                     self.config[key] = kwargs[key]
+                else:
+                    #TODO: Logging
+                    pass
 
         self.generation_rate = self.config['generation_rate']
         self.destinations = self.config['destinations']
+        self.type = self.config['type']
+        self.serv_rate = self.config['serv_rate']
 
     def transmit(self):
         self.generate_packets()
-        if self.queue:
-            return [self.queue.pop()]
-        else:
-            return None
+        return self.service()
 
     def receive(self, packet):
         packet.source = self.id
@@ -51,6 +55,19 @@ class Node(object):
                 else:
                     rand_int = np.random.randint(len(self.destinations))
                     self.queue.append(packet.Packet(self.id, self.destinations[rand_int]))
+
+    def service(self):
+        packets_to_send = []
+        if self.queue:
+            for _ in range(self.serv_rate):
+                try:
+                    packets_to_send.append(self.queue.pop())
+                except IndexError:
+                    #TODO: Logging
+                    break
+            return packets_to_send
+        else:
+            return None
 
     def __hash__(self):
         return hash(self.id)
