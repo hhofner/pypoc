@@ -17,7 +17,8 @@ class Node(object):
         self.config = {'generation_rate': 0,
                        'destinations': [],
                        'type': 'node',
-                       'serv_rate': 1}
+                       'serv_rate': 1,
+                       'queue_cap': 4}
         self.update(**kwargs)
 
     def update(self, **kwargs):
@@ -33,6 +34,7 @@ class Node(object):
         self.destinations = self.config['destinations']
         self.type = self.config['type']
         self.serv_rate = self.config['serv_rate']
+        self.queue_cap = self.config['queue_cap']
 
     def transmit(self):
         self.generate_packets()
@@ -43,7 +45,10 @@ class Node(object):
         if packet.destination == self.id:
             print(f'Node {self.id} received packet {packet.id}')
         else:
-            self.queue.append(packet)
+            if not len(self.queue) > self.queue_cap:
+                self.queue.append(packet)
+            else:
+                print(f'Packet {packet.id} dropped at node {self.id}')
 
     def generate_packets(self):
         if self.generation_rate <= 0:

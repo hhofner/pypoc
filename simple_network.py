@@ -6,6 +6,13 @@ import seaborn as sns
 import numpy as np
 
 class Network(object):
+    '''
+    Main class responsible for creating and running a simulation instance of a network, as well as
+    handling the logic for outbound packets (packets being transmitted).
+
+    The network object expects an 'environment time' argument when being initialized. This parameter indicates how
+    many time steps the network will run for.
+    '''
     def __init__(self, env_time):
         self.env_time = env_time
         self.nodes   = []
@@ -16,41 +23,53 @@ class Network(object):
         # ndarray to keep values of all node weights at each time point
         self.weight_matrix = None
 
-    def set_up_network(self):
+    @staticmethod
+    def default_sagin(ground_node_count=8, air_node_count=6, space_node_count=2):
+        nodes  = []
         ebunch = []
 
-        ground_nodes = [simple_node.Node(**{'type':'ground'}) for _ in range(8)]
-        air_nodes = [simple_node.Node(**{'type':'air'}) for _ in range(6)]
-        sat_nodes = [simple_node.Node(**{'type':'space'}) for _ in range(2)]
+        ground_nodes = [simple_node.Node(**{'type': 'ground'}) for _ in range(ground_node_count)]
+        air_nodes = [simple_node.Node(**{'type': 'air'}) for _ in range(air_node_count)]
+        sat_nodes = [simple_node.Node(**{'type': 'space'}) for _ in range(space_node_count)]
 
         for gn in ground_nodes[:4]:
             for an in air_nodes[:3]:
-                ebunch.append((gn.id, an.id, {'Weight':1}))
+                ebunch.append((gn.id, an.id, {'Weight': 1}))
 
         for gn in ground_nodes[4:]:
             for an in air_nodes[3:]:
-                ebunch.append((gn.id, an.id, {'Weight':1}))
+                ebunch.append((gn.id, an.id, {'Weight': 1}))
 
         for an in air_nodes:
-            ebunch.append((an.id, sat_nodes[0].id, {'Weight':1}))
-            ebunch.append((an.id, sat_nodes[1].id, {'Weight':1}))
+            for sn in sat_nodes:
+                ebunch.append((an.id, sn.id, {'Weight': 1}))
 
-        #update transmitting nodes
+        # update transmitting nodes
         destinations = [n.id for n in ground_nodes[4:]]
         for tgn in ground_nodes[:4]:
-            tgn.update(**{'destinations':destinations})
+            tgn.update(**{'destinations': destinations})
             tgn.update(**{'generation_rate': 1})
 
-        #update relaying nodes
+        # update relaying nodes
         for an in air_nodes:
             an.update(**{'serv_rate': 5})
         for sn in sat_nodes:
             sn.update(**{'serv_rate': 7})
 
-        self.nodes += ground_nodes
-        self.nodes += air_nodes
-        self.nodes += sat_nodes
+        nodes += ground_nodes
+        nodes += air_nodes
+        nodes += sat_nodes
 
+        return (ebunch, nodes)
+
+    def set_up_network(self):
+        '''
+
+        :return: None
+        '''
+        ebunch, temp_nodes = Network.default_sagin()
+
+        self.nodes += temp_nodes
         self.network.add_edges_from(ebunch)
 
         # Initialize empty data values for each node
@@ -62,7 +81,7 @@ class Network(object):
 
     def run(self):
         if not self.nodes:
-            print(f'Error: Network is empty!')
+            raise Exception(f'Error: Network is empty! Please set up the network by calling the method set_up().')
         else:
             while self.env_time > 0:
                 for n in self.nodes:
@@ -120,7 +139,8 @@ if __name__ == '__main__':
     nx.draw(network.network, with_labels=True, ax=ax1)
     ax1.set_title("Network Overview")
 
-    data.plot(ax=ax2)
+    ax2.set(ylim=(0, 8))
+    data[9:15].plot(ax=ax2)
     ax2.set_title("Edge Weights = Packets Transmitted Through Edge")
     ax2.set_xlabel("Time")
     ax2.set_ylabel("Num of Packets in Queue")
