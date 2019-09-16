@@ -18,17 +18,23 @@ class Network(object):
         self.nodes   = []
         self.network = nx.Graph()
         self.outbound_packets = []
-        self.node_values = {}
 
+        # Data Collection Features TODO: Figure out a better solution
         # ndarray to keep values of all node weights at each time point
         self.weight_matrix = None
+
+        # Dictionary that keeps the queue values
+        self.node_values = {}
+
+        # Dictionary that keeps dropped packet values
+        self.dropped_packets = {}
 
     @staticmethod
     def default_sagin(ground_node_count=8, air_node_count=6, space_node_count=2):
         nodes  = []
         ebunch = []
 
-        ground_nodes = [simple_node.Node(**{'type': 'ground'}) for _ in range(ground_node_count)]
+        ground_nodes = [simple_node.VaryingPacketGeneratingNode(**{'type': 'ground', 'gen_scheme': 'time_experimental'}) for _ in range(ground_node_count)]
         air_nodes = [simple_node.Node(**{'type': 'air'}) for _ in range(air_node_count)]
         sat_nodes = [simple_node.Node(**{'type': 'space'}) for _ in range(space_node_count)]
 
@@ -48,13 +54,13 @@ class Network(object):
         destinations = [n.id for n in ground_nodes[4:]]
         for tgn in ground_nodes[:4]:
             tgn.update(**{'destinations': destinations})
-            tgn.update(**{'generation_rate': 1})
+            tgn.update(**{'generation_rate': 3})
 
         # update relaying nodes
         for an in air_nodes:
-            an.update(**{'serv_rate': 5})
+            an.update(**{'serv_rate': 10})
         for sn in sat_nodes:
-            sn.update(**{'serv_rate': 7})
+            sn.update(**{'serv_rate': 15})
 
         nodes += ground_nodes
         nodes += air_nodes
@@ -75,6 +81,7 @@ class Network(object):
         # Initialize empty data values for each node
         for n in self.nodes:
             self.node_values[n.id] = []
+            self.dropped_packets[n.id] = []
 
         #Initialize Weight Matrix
         self.weight_matrix = np.ones((self.env_time, len(self.nodes), len(self.nodes)))
@@ -88,6 +95,9 @@ class Network(object):
                     possible_packets = n.transmit()
                     if possible_packets:
                         self.outbound_packets += possible_packets
+
+                    # Important, how to keep safe?
+                    n.time += 1
 
                 self.evaluate_transmission()
                 self.collect_data()
@@ -124,23 +134,35 @@ class Network(object):
     def collect_data(self):
         for n in self.nodes:
             self.node_values[n.id].append(len(n.queue))
+            self.dropped_packets[n.id].append(len(n.dropped_packets))
 
 
 if __name__ == '__main__':
-    network = Network(50)
+    net_time = 100
+    network = Network(net_time)
     network.set_up_network()
     network.run()
     data = pd.DataFrame(network.node_values)
     print(data)
 
     sns.set()
-    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(8, 4))
+    # fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(8, 4))
+    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2)
 
-    nx.draw(network.network, with_labels=True, ax=ax1)
-    ax1.set_title("Network Overview")
+    # nx.draw(network.network, with_labels=True, ax=ax1)
+    # ax1.set_title("Network Overview")
+
+    dropped_packets_series = []
+    for t in range(net_time):
+        total = 0
+        for node_id in network.dropped_packets.keys():
+            total += network.dropped_packets[node_id][t]
+        dropped_packets_series.append(total)
+
+    ax1.plot(dropped_packets_series)
 
     ax2.set(ylim=(0, 8))
-    data[9:15].plot(ax=ax2)
+    data[9].plot(ax=ax2)
     ax2.set_title("Edge Weights = Packets Transmitted Through Edge")
     ax2.set_xlabel("Time")
     ax2.set_ylabel("Num of Packets in Queue")
