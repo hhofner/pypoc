@@ -42,6 +42,13 @@ class Node(object):
         return self.service()
 
     def receive(self, packet):
+        '''
+        Receive packet object and either add to its queue, or drop the packet
+        if the queue is full.
+
+        :param packet: Packet
+        :return: None
+        '''
         try:
             queue_cap = self.config['queue_cap']
         except KeyError as err:
@@ -57,6 +64,18 @@ class Node(object):
                 self.dropped_packets.append(packet)
 
     def generate_packets(self):
+        '''
+        Set and call \'gen_func\', which generates packages and adds Packet instances
+        to the Node objects queue.
+
+        Supported types of generation schemes:
+        1. \'linear\' : default gen scheme which generates \'generation_rate\' number of packets every time step
+        2. \'basic_normal\' : generate packets based on a normal distribution around \'generation_rate\',
+                              if node object contains \'standard_dev\' configuration, use that configuration for
+                              the standard deviation, else a default value is used.
+        3. \'time_experimental\' : experimental generation scheme with no set functionality. Used for testing purposes.
+        :return: None
+        '''
         if self.config['gen_scheme'] == 'linear':
             gen_func = generation_models.basic_linear_generation
         elif self.config['gen_scheme'] == 'basic_normal':
@@ -67,6 +86,13 @@ class Node(object):
         gen_func(self)
 
     def service(self):
+        '''
+        Method that returns a list of packets from queue to be transmitted. Traverse through queue appending
+        to list of packets to be transmitted. Stop whenever queue is empty or when serv_rate is reached, whichever
+        comes first.
+
+        :return: List(Packet) or None
+        '''
         packets_to_send = []
         serv_rate = self.config['serv_rate']
         if self.queue:
@@ -74,8 +100,10 @@ class Node(object):
                 try:
                     packets_to_send.append(self.queue.popleft())
                 except IndexError:
-                    #TODO: Logging
-                    break
+                    if packets_to_send:
+                        return packets_to_send
+                    else:
+                        return None
             return packets_to_send
         else:
             return None
