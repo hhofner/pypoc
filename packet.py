@@ -1,3 +1,5 @@
+from typing import List, Optional
+
 class Packet:
     current_id = 0
     @staticmethod
@@ -13,7 +15,7 @@ class Packet:
         self.destination    = destination
         self._initial_source = source
 
-        self.path = []
+        self.path: Optional[List[int]] = None
 
     def next_hop(self):
         if not self.path[0] == self.source:
