@@ -1,6 +1,8 @@
 import packet
 import numpy as np
 import generation_models
+from collections import deque
+
 
 class Node(object):
     current_id = 0
@@ -13,7 +15,7 @@ class Node(object):
 
     def __init__(self, **kwargs):
         self.id    = Node.get_id()
-        self.queue = []
+        self.queue = deque()
         self.time  = 0
         self.dropped_packets = [] #TODO: Better implementation pls
 
@@ -55,17 +57,14 @@ class Node(object):
                 self.dropped_packets.append(packet)
 
     def generate_packets(self):
-        generation_rate = self.config['generation_rate']
-        destinations = self.config['destinations']
-        if generation_rate <= 0:
-            return None
-        else:
-            for _ in range(generation_rate):
-                if not destinations:
-                    return None
-                else:
-                    rand_int = np.random.randint(len(destinations))
-                    self.queue.append(packet.Packet(self.id, destinations[rand_int]))
+        if self.config['gen_scheme'] == 'linear':
+            gen_func = generation_models.basic_linear_generation
+        elif self.config['gen_scheme'] == 'basic_normal':
+            gen_func = generation_models.basic_normal_generation
+        elif self.config['gen_scheme'] == 'time_experimental':
+            gen_func = generation_models.time_experimental_generation
+
+        gen_func(self)
 
     def service(self):
         packets_to_send = []
@@ -73,7 +72,7 @@ class Node(object):
         if self.queue:
             for _ in range(serv_rate):
                 try:
-                    packets_to_send.append(self.queue.pop())
+                    packets_to_send.append(self.queue.popleft())
                 except IndexError:
                     #TODO: Logging
                     break
@@ -83,20 +82,3 @@ class Node(object):
 
     def __hash__(self):
         return hash(self.id)
-
-class VaryingPacketGeneratingNode(Node):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def update(self, **kwargs):
-        super().update(**kwargs)
-
-    def generate_packets(self):
-        if self.config['gen_scheme'] == 'linear':
-            gen_func = generation_models.basic_linear_generation
-        elif self.config['gen_scheme'] == 'basic_normal':
-            gen_func = generation_models.basic_normal_generation
-        elif self.config['gen_scheme'] == 'time_experimental':
-            gen_func = generation_models.time_experimental_generation
-
-        gen_func(self)
