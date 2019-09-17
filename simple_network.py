@@ -107,17 +107,17 @@ class Network(object):
     def evaluate_transmission(self):
         # Evaluate packet destinations and overwrite their paths at every point
         for _ in range(len(self.outbound_packets)):
-            outbound_packet = self.outbound_packets.pop()
-            path = nx.dijkstra_path(self.network, outbound_packet.source, outbound_packet.destination, weight='Weight')
-            outbound_packet.path = path
+            outbound_packet = self.outbound_packets.pop() # Should this be a queue?
+            new_path = nx.dijkstra_path(self.network, outbound_packet.source, outbound_packet.destination, weight='Weight')
+            outbound_packet.path = new_path if not outbound_packet.path else outbound_packet.path
 
-            next_node = path[1]
+            next_node = new_path[1]
             self.nodes[next_node].receive(outbound_packet) #Sketchy TODO: Better solution
 
             # At every env_time point, update amount of packets being sent through
             # edge path[0], path[1]
-            self.weight_matrix[self.env_time-1][path[0]][path[1]] += 1
-            self.weight_matrix[self.env_time-1][path[1]][path[0]] += 1
+            self.weight_matrix[self.env_time-1][new_path[0]][new_path[1]] += 1
+            self.weight_matrix[self.env_time-1][new_path[1]][new_path[0]] += 1
 
         # Update edge values according to the number of packets
         # being sent through that edge at the previous time
