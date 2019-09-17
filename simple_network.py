@@ -34,7 +34,7 @@ class Network(object):
         nodes  = []
         ebunch = []
 
-        ground_nodes = [simple_node.VaryingPacketGeneratingNode(**{'type': 'ground', 'gen_scheme': 'time_experimental'}) for _ in range(ground_node_count)]
+        ground_nodes = [simple_node.Node(**{'type': 'ground', 'gen_scheme': 'time_experimental'}) for _ in range(ground_node_count)]
         air_nodes = [simple_node.Node(**{'type': 'air'}) for _ in range(air_node_count)]
         sat_nodes = [simple_node.Node(**{'type': 'space'}) for _ in range(space_node_count)]
 
@@ -138,7 +138,7 @@ class Network(object):
 
 
 if __name__ == '__main__':
-    net_time = 100
+    net_time = 300
     network = Network(net_time)
     network.set_up_network()
     network.run()
