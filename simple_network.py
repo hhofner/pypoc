@@ -14,8 +14,8 @@ class Network(object):
     many time steps the network will run for.
     '''
     def __init__(self, env_time):
-        self.env_time = env_time
-        self.nodes   = []
+        self.env_time: int = env_time
+        self.nodes = []
         self.network = nx.Graph()
         self.outbound_packets = []
 
