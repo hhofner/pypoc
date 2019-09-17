@@ -9,9 +9,10 @@ respectively.
 The general flow and workings is that a Network object will contain a collection of Node objects
 and an environment time attribute. Node objects in turn will create, receive and send Packet objects,
 which the Network object will handle in between transmissions and receiving (that is, the Network
-object somewhat acts as the channel. The Network object iterates over every node and calls "transmit",
+object somewhat acts as the channel). The Network object iterates over every node and calls "transmit",
 collects all packets to be transmitted, evaluates that transmission and then re-iterates through the nodes
-and calls the "receive" method if a packet is to be sent to that node.  
+and calls the "receive" method if a packet is to be sent to that node. It does this in time steps equal
+to the set environment time.
 
 ## Setting up a network
 _tbd_
