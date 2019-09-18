@@ -15,7 +15,14 @@ and calls the "receive" method if a packet is to be sent to that node. It does t
 to the set environment time.
 
 ## Setting up a network
-_tbd_
 
 ## Important Node Attributes
-_tbd_
+The following node attributes must be set beforehand.
+
+- _generation_rate_
+- _destinations_
+- _type_
+- _serv_rate_ 
+- _queue_cap_
+- _gen_scheme_ 
+- _logging_file_
