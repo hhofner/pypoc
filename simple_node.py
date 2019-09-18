@@ -3,7 +3,6 @@ import numpy as np
 import generation_models
 from collections import deque
 
-
 class Node(object):
     current_id = 0
     @staticmethod
@@ -22,9 +21,10 @@ class Node(object):
         self.config = {'generation_rate': 0,
                        'destinations': [],
                        'type': 'node',
-                       'serv_rate': 10,
-                       'queue_cap': 350,
-                       'gen_scheme': 'linear',}
+                       'serv_rate': 0,
+                       'queue_cap': 0,
+                       'gen_scheme': '',
+                       'logging_file': '',}
 
         self.update(**kwargs)
 
@@ -82,6 +82,8 @@ class Node(object):
             gen_func = generation_models.basic_normal_generation
         elif self.config['gen_scheme'] == 'time_experimental':
             gen_func = generation_models.time_experimental_generation
+        else:
+            raise Exception(f'Generation model is not set for node {self.id}')
 
         gen_func(self)
 
