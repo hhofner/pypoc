@@ -3,6 +3,9 @@ import numpy as np
 import generation_models
 from collections import deque
 
+verbose = False
+verboseprint = print if verbose else lambda *a, **k: None
+
 class Node(object):
     current_id = 0
     @staticmethod
@@ -83,9 +86,11 @@ class Node(object):
         elif self.config['gen_scheme'] == 'time_experimental':
             gen_func = generation_models.time_experimental_generation
         else:
-            raise Exception(f'Generation model is not set for node {self.id}')
+            gen_func = None
+            verboseprint(f'Generation model is not set for node {self.id}') #TODO: Log this
 
-        gen_func(self)
+        if gen_func:
+            gen_func(self)
 
     def service(self):
         '''
@@ -97,6 +102,8 @@ class Node(object):
         '''
         packets_to_send = []
         serv_rate = self.config['serv_rate']
+        if serv_rate <= 0:
+            verboseprint(f'Warning: Serve rate is set to 0 for Node {self.id}')
         if self.queue:
             for _ in range(serv_rate):
                 try:
