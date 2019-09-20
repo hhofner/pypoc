@@ -24,5 +24,5 @@ The following node attributes must be set beforehand.
 - _type_
 - _serv_rate_ 
 - _queue_cap_
-- _gen_scheme_ 
+- _gen_scheme_
 - _logging_file_
