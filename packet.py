@@ -8,12 +8,13 @@ class Packet:
         Packet.current_id += 1
         return id
 
-    def __init__(self, source, destination):
+    def __init__(self, source, destination, size):
         self.id = Packet.get_id()
 
-        self.source         = source
-        self.destination    = destination
+        self.source          = source
+        self.destination     = destination
         self._initial_source = source
+        self.size: int       = size
 
         self.path: Optional[List[int]] = None
 
