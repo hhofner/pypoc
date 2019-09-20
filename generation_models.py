@@ -23,7 +23,7 @@ def basic_normal_generation(node):
         if 'standard_dev' in node.config.keys():
             scale = node.config['standard_dev']
         else:
-            scale = int(generation_rate/2)
+            scale = int(generation_rate/4)
 
         packet_rate = int(np.random.normal(generation_rate, scale))
         packet_rate = 0 if packet_rate < 0 else packet_rate
@@ -38,16 +38,17 @@ def basic_normal_generation(node):
 def time_experimental_generation(node):
     generation_rate = node.config['generation_rate']
     destinations = node.config['destinations']
+    packet_size = 1
     if generation_rate <= 0:
         return None
     else:
-        if node.time % 25:
-            for _ in range(generation_rate*3):
+        if node.time == 100:
+            for _ in range(generation_rate*20):
                 if not destinations:
                     return None
                 else:
                     rand_int = np.random.randint(len(destinations))
-                    node.queue.append(packet.Packet(node.id, destinations[rand_int]))
+                    node.queue.append(packet.Packet(node.id, destinations[rand_int], packet_size))
         else:
             x = int(np.random.normal(generation_rate, 1))
             for _ in range(x):
@@ -55,4 +56,4 @@ def time_experimental_generation(node):
                     return None
                 else:
                     rand_int = np.random.randint(len(destinations))
-                    node.queue.append(packet.Packet(node.id, destinations[rand_int]))
+                    node.queue.append(packet.Packet(node.id, destinations[rand_int], packet_size))
