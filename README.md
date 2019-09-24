@@ -26,3 +26,5 @@ The following node attributes must be set beforehand.
 - _queue_cap_
 - _gen_scheme_
 - _logging_file_
+- _transmission_rate_ : The rate of transmission per second, ie '10 kb/s' (ten kilobits per second)
+ 
