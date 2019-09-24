@@ -27,7 +27,8 @@ class Node(object):
                        'serv_rate': 0,
                        'queue_cap': 0,
                        'gen_scheme': '',
-                       'logging_file': '',}
+                       'logging_file': '',
+                       'transmission_rate': 0,}
 
         self.update(**kwargs)
 
@@ -57,11 +58,11 @@ class Node(object):
         except KeyError as err:
             raise err
 
-        packet.source = self.id
         if packet.destination == self.id:
             print(f'Node {self.id} received packet {packet.id}')
         else:
             if not len(self.queue) >= queue_cap:
+                packet.set_current_node(self.id)
                 self.queue.append(packet)
             else:
                 self.dropped_packets.append(packet)
