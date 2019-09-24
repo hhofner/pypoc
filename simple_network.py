@@ -1,11 +1,9 @@
 import networkx as nx
 import simple_node
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 import numpy as np
 import topology_schemes
 from collections import defaultdict
+import logging
 
 class Network(object):
     '''
@@ -20,6 +18,7 @@ class Network(object):
         self.nodes = []
         self.network = nx.Graph()
         self.outbound_packets = []
+        self.channel_capacity = 0 #TODO: Figure out usage
 
         ### Data Collection Features ###
         # #TODO: Figure out a better solution
@@ -72,21 +71,21 @@ class Network(object):
             # Important, how to keep safe?
             n.time += 1
 
-
     def evaluate_transmission(self):
         # Evaluate packet destinations and overwrite their paths at every point
         for _ in range(len(self.outbound_packets)):
             outbound_packet = self.outbound_packets.pop() # Should this be a queue?
-            new_path = nx.dijkstra_path(self.network, outbound_packet.source, outbound_packet.destination, weight='Weight')
-            outbound_packet.path = new_path if not outbound_packet.path else outbound_packet.path
+            # new_path = nx.dijkstra_path(self.network, outbound_packet.source, outbound_packet.destination, weight='Weight')
+            # outbound_packet.path = new_path if not outbound_packet.path else outbound_packet.path
+            outbound_packet.set_path(self.network)
 
-            next_node = new_path[1]
+            next_node = outbound_packet.next_hop()
             self.nodes[next_node].receive(outbound_packet) #Sketchy TODO: Better solution
 
             # At every env_time point, update amount of packets being sent through
             # edge path[0], path[1]
-            self.weight_matrix[self.env_time-1][new_path[0]][new_path[1]] += 1
-            self.weight_matrix[self.env_time-1][new_path[1]][new_path[0]] += 1
+            self.weight_matrix[self.env_time-1][outbound_packet.source][outbound_packet.next_hop()] += 10
+            self.weight_matrix[self.env_time-1][outbound_packet.next_hop()][outbound_packet.source] += 1
 
         # Update edge values according to the number of packets
         # being sent through that edge at the previous time
