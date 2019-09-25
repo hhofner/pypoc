@@ -1,6 +1,5 @@
 import simple_node
 import numpy as np
-import channel
 
 def default_sagin(ground_node_count=8, air_node_count=10, space_node_count=4):
     nodes = []
@@ -53,7 +52,7 @@ def default_sagin(ground_node_count=8, air_node_count=10, space_node_count=4):
 
     return (ebunch, nodes)
 
-def test_topology(node_count=2):
+def test_topology(transmit_node_count=3, relay_node_count=3, receive_node_count=3, time_step_value=3):
     '''
     Test topology building method.
     1. Create nodes
@@ -63,13 +62,45 @@ def test_topology(node_count=2):
     :param node_count:
     :return:
     '''
-    transmit_nodes = []
-    receive_nodes  = []
 
-    num_of_transmit = node_count//2
-    num_of_receive  = node_count - num_of_transmit
+    ### Create corresponding configuration dictionaries ###
+    tnc = {'transmission_rate': int(40000*time_step_value),
+            'queue_cap': 10000000,
+            'serv_rate': int(40000*time_step_value),
+            'gen_scheme': 'basic_normal',
+            }
 
-    for _ in range(num_of_receive):
-        receive_nodes.append(simple_node.Node())
-    for _ in range(num_of_transmit):
-        pass
+    rnc = dict(tnc)
+    rnc['transmission_rate'] = 0
+
+    dnc = dict(rnc)
+    dnc['serv_rate'] = 0
+
+    ### Create Nodes and respective lists ***
+    transmit_nodes = [simple_node.Node(**tnc) for _ in range(transmit_node_count)]
+    relay_nodes    = [simple_node.Node(**rnc) for _ in range(relay_node_count)]
+    receive_nodes  = [simple_node.Node(**dnc) for _ in range(receive_node_count)]
+
+    ### Assign the list of receiving nodes to transmitting nodes ###
+    receive_node_IDs = [rcn.id for rcn in receive_nodes]
+    for tnode in transmit_nodes:
+        tnode.config['destinations'] = receive_node_IDs
+
+    ### Create connections ###
+    ebunch = []
+    for tnode in transmit_nodes:
+        for rnode in relay_nodes:
+            ebunch.append((tnode.id, rnode.id, {'Weight': 1}))
+
+    for rnode in relay_nodes:
+        for dnode in receive_nodes:
+            ebunch.append((rnode.id, dnode.id, {'Weight': 1}))
+
+    nodes = []
+    nodes += transmit_nodes
+    nodes += relay_nodes
+    nodes += receive_nodes
+
+    return (ebunch, nodes)
+
+
