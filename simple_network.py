@@ -56,6 +56,8 @@ class Network(object):
         else:
             self.channel = channel.Channel(self._bandwidth, self._sinr, self._time_step_equivalent)
 
+        self._set_nodes_topology_attribute()
+
         #Initialize Weight Matrix
         self.weight_matrix = np.ones((self.env_time, len(self.nodes), len(self.nodes)))
 
@@ -105,10 +107,9 @@ class Network(object):
             self.node_values[n.id].append(len(n.queue))
             self.dropped_packets[n.id].append(len(n.dropped_packets))
 
-    def _set_topology_for(self, nodes):
+    def _set_nodes_topology_attribute(self):
         for node in self.nodes:
             node.topology = self.network
-
 
 if __name__ == '__main__':
     pass
