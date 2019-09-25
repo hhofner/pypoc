@@ -20,6 +20,7 @@ class Node(object):
         self.queue = deque()
         self.time  = 0
         self.dropped_packets = [] #TODO: Better implementation pls
+        self.topology = None
 
         self.config = {'generation_rate': 0,
                        'destinations': [],
@@ -54,15 +55,16 @@ class Node(object):
         :return: None
         '''
         try:
-            queue_cap = self.config['queue_cap']
-        except KeyError as err:
-            raise err
+            self.queue_cap_current
+        except AttributeError:
+            self.queue_cap_current = self.config['queue_cap']
 
         if packet.destination == self.id:
             print(f'Node {self.id} received packet {packet.id}')
         else:
-            if not len(self.queue) >= queue_cap:
+            if not packet.size < self.queue_cap_current:
                 packet.set_current_node(self.id)
+                self.queue_cap_current -= packet.size
                 self.queue.append(packet)
             else:
                 self.dropped_packets.append(packet)
@@ -106,14 +108,25 @@ class Node(object):
         if serv_rate <= 0:
             verboseprint(f'Warning: Serve rate is set to 0 for Node {self.id}')
         if self.queue:
-            for _ in range(serv_rate):
-                try:
-                    packets_to_send.append(self.queue.popleft())
-                except IndexError:
-                    if packets_to_send:
-                        return packets_to_send
+            for _ in range(len(self.queue)):
+                if serv_rate > 0:
+                    try:
+                        to_be_sent = self.queue.popleft()
+                    except IndexError:
+                        if packets_to_send:
+                            return packets_to_send
+                        else:
+                            return None
                     else:
-                        return None
+                        packets_to_send.append(to_be_sent)
+                        serv_rate -= to_be_sent.size
+                        try:
+                            self.queue_cap_current += to_be_sent.size
+                        except AttributeError:
+                            pass
+                else:
+                    return packets_to_send
+
             return packets_to_send
         else:
             return None
