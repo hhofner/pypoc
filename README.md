@@ -16,13 +16,28 @@ to the set environment time.
 
 ## Setting up a network
 
-## Important Node Attributes
+#### Creating Nodes for a network
+To create a node, first create a dictionary that describes that node
+based with the attributes:
+- _transmission_rate_
+- _gen_scheme_
+- _queue_cap_
+- _serv_rate_
+After creating the topology with the destination nodes, pass the list
+of destination node ID's **(IMPORTANT: Not the nodes itself, but the destination
+ID's)**
+
+Creating connections is done by creating length of 3 tuples with the form:
+(node1.ID, node2.ID, {'attribute': value}) . For now, the 'Weight' attribute
+needs to be specified.
+
+#### Important Node Attributes
 The following node attributes must be set beforehand.
 
 - _generation_rate_
 - _destinations_
 - _type_
-- _serv_rate_ 
+- _serv_rate_ : Number of packets that are picked off the queue to be transmitted.
 - _queue_cap_
 - _gen_scheme_
 - _logging_file_
