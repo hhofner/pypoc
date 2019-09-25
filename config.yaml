@@ -1,1 +1,4 @@
-a
+default:
+  receive:
+    generation_rate: 0
+    queue_cap: 100 # Number of packets
