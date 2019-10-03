@@ -1,8 +1,9 @@
 import networkx as nx
 import numpy as np
-import channel
+import pandas as pd
+from archive import channel
 from collections import defaultdict
-from math import log2
+
 
 class Network(object):
     '''
@@ -27,6 +28,7 @@ class Network(object):
         ######### Data Collection Features #########
         ############################################
         # #TODO: Figure out a better solution: Pandas DF
+        self.data_frame = pd.DataFrame(columns=['packets_sent', 'packets_dropped'])
 
         # ndarray to keep values of all vertice weights at each time point
         self.weight_matrix = None
@@ -49,14 +51,12 @@ class Network(object):
 
         self.nodes += temp_nodes
         self.network.add_edges_from(ebunch)
-        self._set_topology_for(self.nodes)
+        self._set_nodes_topology_attribute()
 
         if not self._bandwidth or not self._sinr:
             raise Exception(f'Bandwidth or SINR is not set for Network {self}')
         else:
             self.channel = channel.Channel(self._bandwidth, self._sinr, self._time_step_equivalent)
-
-        self._set_nodes_topology_attribute()
 
         #Initialize Weight Matrix
         self.weight_matrix = np.ones((self.env_time, len(self.nodes), len(self.nodes)))
@@ -66,17 +66,20 @@ class Network(object):
             raise Exception(f'Error: Network is empty! Please set up the network by calling the method set_up().')
         else:
             while self.env_time > 0:
+                print(f'Running env time {self.env_time}')
 
                 self.evaluate_transmission()
-                self.transmit_packets_from_nodes()
                 self.collect_data()
+                self.transmit_packets_from_nodes()
+
                 self.env_time -= 1
+        print(f'Done')
 
     def transmit_packets_from_nodes(self):
         for n in self.nodes:
             possible_packets = n.transmit()
             if possible_packets:
-                self.channel.access(possible_packets)
+                self.channel.access_through(possible_packets)
                 self.packet_transmit_count[self.env_time] += len(possible_packets)
 
             # Important, how to keep safe?
@@ -105,11 +108,26 @@ class Network(object):
     def collect_data(self):
         for n in self.nodes:
             self.node_values[n.id].append(len(n.queue))
-            self.dropped_packets[n.id].append(len(n.dropped_packets))
+            self.dropped_packets[n.id].append(n.dropped_packets_current)
 
     def _set_nodes_topology_attribute(self):
         for node in self.nodes:
             node.topology = self.network
+
+class SimpleNetwork():
+    def __init__(self, env_time):
+        '''
+
+        :param env_time: Number of time steps the network will run for.
+        '''
+        self.env_time = env_time
+        self.network = self.create_network()
+
+    def run(self):
+        for
+
+    def create_network(self):
+        pass
 
 if __name__ == '__main__':
     pass

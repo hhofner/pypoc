@@ -1,9 +1,7 @@
-import packet
-import numpy as np
-import generation_models
+from archive import generation_models
 from collections import deque
 
-verbose = False
+verbose = True
 verboseprint = print if verbose else lambda *a, **k: None
 
 class Node(object):
@@ -19,7 +17,8 @@ class Node(object):
         self.id    = Node.get_id()
         self.queue = deque()
         self.time  = 0
-        self.dropped_packets = [] #TODO: Better implementation pls
+        self.dropped_packets_current = 0 #TODO: Better implementation pls
+        self.receive_packets_current = 0
         self.topology = None
 
         self.config = {'generation_rate': 0,
@@ -43,6 +42,8 @@ class Node(object):
                     raise Exception(f'kwargs[{key}] is not of type {self.config[key]}')
 
     def transmit(self):
+        self.dropped_packets_current = 0
+        self.receive_packets_current = 0
         self.generate_packets()
         return self.service()
 
@@ -62,12 +63,12 @@ class Node(object):
         if packet.destination == self.id:
             print(f'Node {self.id} received packet {packet.id}')
         else:
-            if not packet.size < self.queue_cap_current:
+            if packet.size < self.queue_cap_current:
                 packet.set_current_node(self.id)
                 self.queue_cap_current -= packet.size
                 self.queue.append(packet)
             else:
-                self.dropped_packets.append(packet)
+                self.dropped_packets_current += 1
 
     def generate_packets(self):
         '''
@@ -106,7 +107,7 @@ class Node(object):
         packets_to_send = []
         serv_rate = self.config['serv_rate']
         if serv_rate <= 0:
-            verboseprint(f'Warning: Serve rate is set to 0 for Node {self.id}')
+            pass
         if self.queue:
             for _ in range(len(self.queue)):
                 if serv_rate > 0:
@@ -133,3 +134,4 @@ class Node(object):
 
     def __hash__(self):
         return hash(self.id)
+

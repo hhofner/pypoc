@@ -1,8 +1,7 @@
 # import simpy
 import logging
-import packet
+from archive import packet
 import numpy as np
-from exceptions import RunMethodEmpty
 from abc import ABCMeta, abstractmethod
 
 logging.basicConfig(filename="node.log", level=logging.INFO, filemode="w")

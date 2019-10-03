@@ -1,4 +1,4 @@
-import simple_node
+from archive import simple_node
 import numpy as np
 
 def default_sagin(ground_node_count=8, air_node_count=10, space_node_count=4):
@@ -52,7 +52,7 @@ def default_sagin(ground_node_count=8, air_node_count=10, space_node_count=4):
 
     return (ebunch, nodes)
 
-def test_topology(transmit_node_count=3, relay_node_count=3, receive_node_count=3, time_step_value=3):
+def test_topology(transmit_node_count=10, relay_node_count=3, receive_node_count=3, time_step_value=3):
     '''
     Test topology building method.
     1. Create nodes

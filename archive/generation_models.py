@@ -1,5 +1,6 @@
 import numpy as np
-import packet
+from archive import packet
+
 
 def basic_linear_generation(node):
     packet_size = 8000 #1kB
@@ -13,7 +14,7 @@ def basic_linear_generation(node):
         return None
     else:
         transmit_rate_current = np.random.normal(transmission_rate)
-        for _ in range(transmit_rate_current//packet):
+        for _ in range(transmit_rate_current // packet):
             if not destinations:
                 print(f'Warning: no destinations specified for node {node.id}')
                 return None
@@ -32,7 +33,6 @@ def basic_normal_generation(node):
     destinations = node.config['destinations']
 
     if transmission_rate <= 0:
-        print(f'Warning: Transmission rate is 0')
         return None
     else:
         transmit_rate_current = np.random.normal(transmission_rate)
