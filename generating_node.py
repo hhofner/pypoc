@@ -25,7 +25,7 @@ class Node:
 
         self.destinations = destinations
 
-        self.data = [[]] # [[dropped packets]]
+        self.metadata = [[]] # [[dropped packets]]
 
     def transmit(self):
         '''
@@ -66,22 +66,28 @@ class Node:
                 self.queue.append(packet)
             else:
                 dropped_packets += 1
-                self.data[1].append(dropped_packets)
+                self.metadata[0].append(dropped_packets)
 
     def generate(self, network):
-        if self.gen_rate:
-            if not self.destinations or not self.network:
+        '''
+        Generate packets and push onto the nodes queue.
+
+        :param network: A networkx Graph object instance
+        :return:
+        '''
+        if self.gen_rate > 0:
+            if not self.destinations:
                 raise Exception(f'No destinations or network declared for Node {self.id}')
             max_bits_to_send = self.gen_rate
 
             while (max_bits_to_send > 0):
-                size = self.packet_size
-                src = self.id
+                packet_size = self.packet_size
+                src = self
                 dest = random.choice(self.destinations)
-                path = nx.shortest_path(network, src, dest)
-                new_packet = Packet(size, src, dest, path)
+                path = self._get_string_path(nx.shortest_path(network, src, dest))
+                new_packet = Packet(packet_size, src, dest, path)
                 self.queue.append(new_packet)
-                max_bits_to_send -= size
+                max_bits_to_send -= packet_size
         else:
             pass
 
@@ -92,7 +98,13 @@ class Node:
 
         return current_size
 
+    def _get_string_path(self, path):
+        return ('-'.join(str(n.id) for n in path))
+
     def __hash__(self):
         return hash(self.id)
+
+    def __repr__(self):
+        return f'Node {self.id}'
 
 
