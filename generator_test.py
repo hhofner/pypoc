@@ -3,80 +3,136 @@ import generating_node
 import simple_channel
 import matplotlib.pyplot as plt
 import pandas as pd
+from collections import defaultdict
+import numpy as np
 
-''' Constants'''
-packet_size = 1016 #bits = 127 bytes
+def run_network_for(ground_nodes, air_nodes, space_nodes, t_steps, time_equivalent):
+    network = nx.Graph()
+    ''' Create nodes'''
+    receiving_nodes = []
+    for _ in range(ground_nodes//2):
+        new = generating_node.Node(time_equivalent, packet_size=None, queue_size=1000, transmit_rate=0, gen_rate=0,
+                                    type='dest')
+        receiving_nodes.append(new)
 
-network = nx.Graph()
-''' Create nodes'''
-receiving_nodes = []
-for _ in range(2):
-    new = generating_node.Node(0.001, packet_size=None, queue_size=int(8e8), transmit_rate=0, gen_rate=0)
-    receiving_nodes.append(new)
+    level_one_relays = []
+    for _ in range(air_nodes):
+        new = generating_node.Node(time_equivalent, packet_size=None, queue_size=5000, transmit_rate=np.random.normal(125000), gen_rate=0,
+                                    type='lvl1')
+        level_one_relays.append(new)
 
-level_one_relays = []
-for _ in range(6):
-    new = generating_node.Node(0.001, packet_size=None, queue_size=int(600000), transmit_rate=2400, gen_rate=0)
-    level_one_relays.append(new)
+    level_two_relays = []
+    for _ in range(space_nodes):
+        new = generating_node.Node(time_equivalent, packet_size=None, queue_size=5000, transmit_rate=np.random.normal(1250000), gen_rate=0,
+                                    type='lvl2')
+        level_two_relays.append(new)
 
-level_two_relays = []
-for _ in range(2):
-    new = generating_node.Node(0.001, packet_size=None, queue_size=int(600000), transmit_rate=2400, gen_rate=0)
-    level_two_relays.append(new)
+    transmit_nodes = []
+    for _ in range(ground_nodes - ground_nodes//2):
+        new_node = generating_node.Node(time_equivalent, packet_size=1, queue_size=int(8e7), transmit_rate=np.random.randint(125, 1250), gen_rate=np.random.normal(125),
+                                        destinations=receiving_nodes,  type='src')
+        transmit_nodes.append(new_node)
 
-transmit_nodes = []
-destination_id_list = [dest.id for dest in receiving_nodes]
-for _ in range(4):
-    new_node = generating_node.Node(0.001, packet_size=packet_size, queue_size=int(8e7), transmit_rate=2400, gen_rate=2400,
-                                    destinations=receiving_nodes)
-    transmit_nodes.append(new_node)
+    ''' Create connections '''
+    channels = []
+    main_channel1 = simple_channel.Channel(name='main1', time_step=time_equivalent, bandwidth=10e9, sinr=40)
+    main_channel2 = simple_channel.Channel(name='main2', time_step=time_equivalent, bandwidth=10e9, sinr=40)
 
-''' Create connections '''
-channel = simple_channel.Channel(name='test', time_step=0.001, bandwidth=15e6, sinr=1)
-ebunch = [] #list of edge-tuples
-half1 = len(level_one_relays)//2
-for tn in transmit_nodes:
-    for rn in level_one_relays[:half1]:
-        temp = (tn, rn, {'Weight' : 1, 'Channel': channel})
-        ebunch.append(temp)
+    wimax = simple_channel.Channel(name='wimax', time_step=time_equivalent, bandwidth=10e9, sinr=40)
 
-for dn in receiving_nodes:
-    for rn in level_one_relays[half1:]:
-        temp = (dn, rn, {'Weight': 1, 'Channel': channel})
-        ebunch.append(temp)
+    ebunch = [] #list of edge-tuples
+    half1 = len(level_one_relays)//2
+    for tn in transmit_nodes:
+        for rn in level_one_relays[:half1]:
+            temp = (tn, rn, {'Weight' : 1, 'Channel': main_channel1})
+            ebunch.append(temp)
 
-for rn1 in level_one_relays:
-    for rn2 in level_two_relays:
-        temp = (rn1, rn2, {'Weight': 1, 'Channel': channel})
-        ebunch.append(temp)
+    for dn in receiving_nodes:
+        for rn in level_one_relays[half1:]:
+            temp = (dn, rn, {'Weight': 1, 'Channel': main_channel1})
+            ebunch.append(temp)
 
-network.add_edges_from(ebunch)
+    for rn1 in level_one_relays:
+        for rn2 in level_two_relays:
+            temp = (rn1, rn2, {'Weight': 1, 'Channel': main_channel1})
+            ebunch.append(temp)
 
-''' Data Structures'''
-node_data = {'queue_size': []}
-network_data = [dict(node_data) for _ in range(len(network.nodes))]
+    for rn1 in level_one_relays:
+        for rn12 in level_one_relays:
+            if not rn1 is rn12:
+                temp = (rn1, rn2, {'Weight': 1, 'Channel': main_channel1})
+                ebunch.append(temp)
 
-'''############### RUN LOOP #################'''
-time_steps = 10
+    network.add_edges_from(ebunch)
 
-print('Starting network...')
-while time_steps > 0:
+    ''' Data Structures'''
+    network_data = defaultdict(None)
 
-    #### RUNNING NETWORK ####
-    for node in network.nodes:
-        node.generate(network)
+    '''############### RUN LOOP #################'''
+    time_steps = t_steps
 
-        # Transmit through channel
-        channel.transmit_access(node.transmit)
+    print('Starting network...')
+    while time_steps > 0:
 
-    #### RUNNING NETWORK ####
-    time_steps = time_steps - 1
-'''##########################################'''
-print('Finished')
+        #### RUNNING NETWORK ####
+        for node in network.nodes:
+            node.generate(network)
+
+            # Transmit to channel
+            #TODO: Idea, pass channel name to transmit (looping through available channels)
+            main_channel1.transmit_access(node.transmit())
+
+        # 'Access' the packets in the channel
+        for edge in network.edges:
+            n1, n2 = edge
+            for_n1 = network[n1][n2]['Channel'].receive_access(n2, n1)
+            for_n2 = network[n1][n2]['Channel'].receive_access(n1, n2)
+
+            n1.receive(for_n1)
+            n2.receive(for_n2)
+
+            #Update weights
+            network[n1][n2]['Weight'] += (len(for_n1) + len(for_n2))
+
+
+        #### RUNNING NETWORK ####
+        time_steps = time_steps - 1
+    '''##########################################'''
+    print('Finished')
+    # Collect all data from the nodes
+    for node in network.nodes():
+        network_data[str(node)] = node.metadata
+
+    network_data[str(main_channel1)] = main_channel1.metadata
+    network_data['dropped_count'] = generating_node.Packet.dropped_count
+    network_data['arrived_count'] = generating_node.Packet.arrived_count
+    generating_node.Packet.reset()
+    return network_data
 
 ''' DRAW THE NETWORK '''
-networkdf = pd.DataFrame(network_data)
-print(networkdf)
-# fig, ax = plt.subplots()
-# nx.draw(network, ax=ax)
+net_data = run_network_for(4, 6, 2, 100, 0.001)
+
+print('Dropped Packets:', str(net_data['dropped_count']))
+print('Arrived Packets:', str(net_data['arrived_count']))
+
+# net_data = run_network_for(6, 8, 2, 100, 0.001)
+#
+# print('Dropped Packets:', str(net_data['dropped_count']))
+# print('Arrived Packets:', str(net_data['arrived_count']))
+# net_data = run_network_for(12, 16, 4, 100, 0.001)
+#
+# print('Dropped Packets:', str(net_data['dropped_count']))
+# print('Arrived Packets:', str(net_data['arrived_count']))
+
+fig, ax = plt.subplots()
+
+# labels = []
+# for key in net_data.keys():
+#     if 'lvl' in key:
+#         ax.plot(net_data[key][2])
+#         labels.append(key)
+#     if 'Channel' in key:
+#         print(net_data[key]['dropped_packets'])
+#
+# ax.legend(labels)
 # plt.show()

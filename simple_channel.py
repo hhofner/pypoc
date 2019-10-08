@@ -5,8 +5,8 @@ class Channel:
         self.name = name
         self.bandwidth = bandwidth
         self.sinr = sinr
-        self.true_capacity = bandwidth * log2(1 + sinr)
-        self.capacity = int(self.true_capacity * time_step) #bits per time step
+        self.true_capacity = (bandwidth * log2(1 + sinr)) / 8000 # TODO: Remove this and somehow implement it when calling it
+        self.capacity = self.true_capacity * time_step #'p' per time step
         print(f'Instantiating {self.name} channel with channel capacity: {self.true_capacity} bps')
 
         self.held_packets = [] #data contained in the channel
@@ -17,6 +17,7 @@ class Channel:
         for packet in packet_list:
             if current_held_bits > self.capacity:
                 self.metadata['dropped_packets'] += 1
+                packet.dropped()
             else:
                 current_held_bits += packet.size
                 self.held_packets.append(packet)
@@ -34,3 +35,6 @@ class Channel:
             total_sum += packet.size
 
         return total_sum
+
+    def __repr__(self):
+        return f'Channel-{self.name}-{str(self.capacity)}'
