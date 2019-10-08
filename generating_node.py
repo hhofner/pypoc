@@ -1,7 +1,8 @@
-from collections import deque,  namedtuple
+from collections import deque, namedtuple, defaultdict
 import networkx as nx
 import numpy as np
 import random
+import math
 
 # Packet = namedtuple('Packet', ['size', 'src', 'dest', 'path'])
 class Packet:
@@ -85,7 +86,7 @@ class Node:
         '''
         packets_to_transmit = []
         if self.transmit_nokori > 0 and self.transmit_nokori < 1:
-            self.transmit_nokori += self.transmit_rate
+            self.transmit_nokori += np.random.normal(self.transmit_rate)
         else:
             self.transmit_nokori = np.random.normal(self.transmit_rate)
         to_send_bit_count = 0
@@ -103,6 +104,7 @@ class Node:
             total_size += p.size
         self.metadata[2].append(total_size)
 
+        print(f'Len of transmitted packets {len(packets_to_transmit)} from {self.type}')
         return packets_to_transmit
 
     def receive(self, received_packets):
@@ -183,4 +185,54 @@ class Node:
             return f'Node[{self.type}]-{self.id}'
 
 class MultipleChannelNode(Node):
-    pass
+    def __init__(self, time_step, packet_size, queue_size,
+                    transmit_rate, gen_rate, destinations=None,
+                    type=None, channel_interface_list=None):
+        super().__init__(time_step, packet_size, queue_size,
+                            transmit_rate, gen_rate, destinations,
+                            type)
+        self.channel_interface_dict = {}
+        for channel in channel_interface_list:
+            self.channel_interface_dict[channel.name] = 1/len(channel_interface_list)
+
+        print(f'Channel Interfaces: {self.channel_interface_dict}')
+
+    def transmit(self,channel_list):
+        packets_to_transmit = []
+        if self.transmit_nokori > 0 and self.transmit_nokori < 1:
+            self.transmit_nokori += self.transmit_rate
+        else:
+            self.transmit_nokori = np.random.normal(self.transmit_rate)
+        to_send_bit_count = 0
+        while(self.transmit_nokori > 1):
+            try:
+                packet = self.queue.popleft()
+            except IndexError as err:
+                break
+            else:
+                to_send_bit_count += packet.size
+                packets_to_transmit.append(packet)
+            self.transmit_nokori = self.transmit_nokori - 1
+        total_size = 0
+        for p in packets_to_transmit:
+            total_size += p.size
+        self.metadata[2].append(total_size)
+
+        packets_to_transmit_per_channel = defaultdict(None)
+        if len(packets_to_transmit) > len(self.channel_interface_dict.keys()):
+            for key in self.channel_interface_dict.keys():
+                i = int(self.channel_interface_dict[key] * len(packets_to_transmit))
+                for _ in range(i):
+                    try:
+                        packets_to_transmit_per_channel[key] = packets_to_transmit.pop()
+                    except:
+                        break
+
+            # input(f'packets_to_transmit_per_channel: {packets_to_transmit_per_channel}')
+            for chan in channel_list:
+                try:
+                    chan.transmit_access([packets_to_transmit_per_channel[chan.name]]) # Need to pass list to transmit access
+                except:
+                    print(f'Couldnt find for {chan.name}')
+        else:
+            channel_list[0].transmit_access(packets_to_transmit)
