@@ -1,40 +1,62 @@
 from math import log2
+from collections import deque
 
-class Channel:
-    def __init__(self, name, time_step, bandwidth, sinr):
+
+class SimpleChannel:
+    def __init__(self, name, bandwidth, time_equivalent):
         self.name = name
-        self.bandwidth = bandwidth
-        self.sinr = sinr
-        self.true_capacity = (bandwidth * log2(1 + sinr)) / 8000 # TODO: Remove this and somehow implement it when calling it
-        self.capacity = self.true_capacity * time_step #'p' per time step
-        print(f'Instantiating {self.name} channel with channel capacity: {self.true_capacity} bps')
+        self._packets_in_channel = deque()
+        self._to_transmit = deque()
+        self._raw_bandwidth = bandwidth
+        self.bandwidth = float(bandwidth) * time_equivalent
+        self.time = 0
 
-        self.held_packets = [] #data contained in the channel
-        self.metadata = {'dropped_packets': 0}
+        self.current_channel_load = 0
 
-    def transmit_access(self, packet_list):
-        current_held_bits = self._get_packet_list_sum(self.held_packets)
-        for packet in packet_list:
-            if current_held_bits > self.capacity:
-                self.metadata['dropped_packets'] += 1
-                packet.dropped()
-            else:
-                current_held_bits += packet.size
-                self.held_packets.append(packet)
+        self.data = {'received_packets': [],
+                     'sent_packets': [],
+                     'dropped_packets': [],
+                     }
 
-    def receive_access(self, src, dest):
+    def get_packets(self, src, dest):
+        '''Get packets in channel that are from "from"
+           to "to".
+
+           :param src; Node object
+           :param dest; Node object
+           :return; list of Packet objects with 'from'-'to' string
+                    in path of Packet
+        '''
         packets_to_return = []
-        for packet in self.held_packets:
+        for packet in self._to_transmit:
             if f'{src.id}-{dest.id}' in packet.path:
                 packets_to_return.append(packet)
+                self.current_channel_load -= packet.size
+                if self.current_channel_load < 0:
+                    # raise Exception(f'Channel load below 0')
+                    pass
+        self.data['sent_packets'].append(packets_to_return)
         return packets_to_return
 
-    def _get_packet_list_sum(self, packet_list):
-        total_sum = 0
+    def receive(self, packet_list):
+        '''Receive packet list and insert into channel (_packets_in_channel)
+           and add to counter
+        '''
+        received_packets = []
         for packet in packet_list:
-            total_sum += packet.size
+            if self.current_channel_load < self.bandwidth:
+                self._packets_in_channel.append(packet)
+                self.current_channel_load += packet.size
+                print(f'chan_load: {self.current_channel_load}')
+                received_packets.append(packet)
+            elif self.current_channel_load > self.bandwidth:
+                break
+        self.data['received_packets'].append(received_packets)
 
-        return total_sum
+    def update(self):
+        for packet in self._packets_in_channel:
+            self._to_transmit.append(packet)
+        self.time += 1
 
     def __repr__(self):
-        return f'Channel-{self.name}-{str(self.capacity)}'
+        return f'Channel_{self.name}_{str(self.bandwidth)}'

@@ -4,10 +4,11 @@ import numpy as np
 import random
 import math
 
-# Packet = namedtuple('Packet', ['size', 'src', 'dest', 'path'])
+
 class Packet:
     arrived_count = 0
     dropped_count = 0
+    generated_count = 0
 
     @staticmethod
     def dropped():
@@ -45,6 +46,7 @@ class Packet:
     def path(self):
         return self._path
 
+
 class Node:
     current_id = 0
 
@@ -55,7 +57,8 @@ class Node:
         print(f'Instantiating Node {id}')
         return id
 
-    def __init__(self, time_step, packet_size, queue_size, transmit_rate, gen_rate, destinations=None, type=None):
+    def __init__(self, time_step, packet_size, queue_size, transmit_rate,
+                 gen_rate, destinations=None, type=None):
         self.id = Node.get_id()
         if packet_size:
             self.gen_rate = gen_rate * time_step / packet_size
@@ -71,12 +74,18 @@ class Node:
         self.destinations = destinations
         self.type = type
 
-        self.metadata = [[],[],[], 0] # [[dropped packets], [generated_packets], [transmitted_packets], total_received_packets]
+        self.metadata = defaultdict(int)
+        self.metadata.update({'drop_packet': [],
+                              'receive_packet': [],
+                              'receive_count': 0,
+                              'sent_count': 0,
+                              'generate_packet': [],
+                              'byte_send': []})
 
-        self.gen_nokori = 0 # This is a "left-over" counter to include the "0.25" packets
+        self.gen_nokori = 0  # This is a "left-over" counter
         self.transmit_nokori = 0
 
-    def transmit(self):
+    def transmit_to(self):
         '''
         Return a list of packets fetched from the nodes queue
         with a total bit count of more or less the nodes
@@ -84,6 +93,7 @@ class Node:
 
         :return: List of Packet tuples, can be empty
         '''
+        print(f'Node-{self.id} transmitting')
         packets_to_transmit = []
         if self.transmit_nokori > 0 and self.transmit_nokori < 1:
             self.transmit_nokori += np.random.normal(self.transmit_rate)
@@ -102,9 +112,7 @@ class Node:
         total_size = 0
         for p in packets_to_transmit:
             total_size += p.size
-        self.metadata[2].append(total_size)
 
-        print(f'Len of transmitted packets {len(packets_to_transmit)} from {self.type}')
         return packets_to_transmit
 
     def receive(self, received_packets):
@@ -116,18 +124,19 @@ class Node:
         :param packets: list of Packet tuples
         :return:
         '''
-        dropped_packets = 0
         current_size = self._get_current_queue_size()
         for packet in received_packets:
             if current_size <= self.queue_max_size:
                 current_size += packet.size
                 self.queue.append(packet)
-                self.metadata[3] += 1 # increment received packet count
+                self.metadata['receive_count'] += 1
+                self.metadata['receive_packet'].append(packet)
+                print(self.type)
                 if self.type == 'dest':
-                    packet.arrived()
+                    Packet.arrived()
             else:
-                dropped_packets += 1
-                self.metadata[0].append(dropped_packets)
+                self.metadata['drop_packet'].append(packet)
+                packet.dropped()
 
     def generate(self, network):
         '''
@@ -138,11 +147,11 @@ class Node:
         :return:
         '''
         if self.gen_rate > 0:
-            num_of_generated_packets = 0
+            generated_packets = []
             if not self.destinations:
                 raise Exception(f'No destinations or '
-                                    'network declared for Node {self.id}')
-            self.gen_nokori += np.random.normal(self.gen_rate)
+                                f'network declared for Node {self.id}')
+            self.gen_nokori += np.random.normal(self.gen_rate)  # TODO: Logic?
 
             packet_size = self.packet_size
             while (self.gen_nokori > 1):
@@ -150,20 +159,21 @@ class Node:
                 dest = random.choice(self.destinations)
 
                 path = self._get_string_path(nx.dijkstra_path(network,
-                                                src, dest, 'Weight'))
+                                             src, dest, 'Weight'))
 
                 # print(nx.shortest_path(network, src, dest, 'Weight'))
                 # input(f'Path for {src.id} to {dest.id}: {path} from ')
 
                 new_packet = Packet(packet_size, src, dest, path)
-                self.queue.append(new_packet)
-                num_of_generated_packets += 1
-                self.gen_nokori = self.gen_nokori - 1
+                generated_packets.append(new_packet)
+                self.gen_nokori = self.gen_nokori - 1  #TODO: Rethink logic
                 if self.gen_nokori < 0:
                     raise Exception('gen_nokori is less than zero')
-            self.metadata[1].append(num_of_generated_packets)
+            self.metadata['generate_packet'].append(generated_packets)
+            self.queue.extend(generated_packets)
         else:
-            self.metadata[1].append(0)
+            # self.metadata['generate_packet'].append([None])
+            pass
 
     def _get_current_queue_size(self):
         current_size = 0
@@ -172,7 +182,7 @@ class Node:
 
         return current_size
 
-    def _get_string_path(self, path):
+    def get_string_path(self, path):
         return ('-'.join(str(n.id) for n in path))
 
     def __hash__(self):
@@ -184,20 +194,38 @@ class Node:
         else:
             return f'Node[{self.type}]-{self.id}'
 
+
 class MultipleChannelNode(Node):
     def __init__(self, time_step, packet_size, queue_size,
-                    transmit_rate, gen_rate, destinations=None,
-                    type=None, channel_interface_list=None):
+                 transmit_rate, gen_rate, destinations=None,
+                 type=None, channel_interface_list=None):
+        '''
+        Initialize a Node object with support for multiple channels. Even ratio
+        numbers are assigned to each channel in self.channel_interface_dict.
+
+        :param time_step:
+        :param queue_size:
+        :param transmit_rate:
+        :param gen_rate:
+        :param destinations: List of Node objects, optional
+        :param type: String denoting type of Node object, optional
+        :param channel_interface_list: List of (String) names of channels the
+                                       Node object can use/has access to
+        '''
+
         super().__init__(time_step, packet_size, queue_size,
-                            transmit_rate, gen_rate, destinations,
-                            type)
+                         transmit_rate, gen_rate, destinations,
+                         type)
+
         self.channel_interface_dict = {}
         for channel in channel_interface_list:
-            self.channel_interface_dict[channel.name] = 1/len(channel_interface_list)
+            self.channel_interface_dict[channel] = \
+                1/len(channel_interface_list)
 
-        print(f'Channel Interfaces: {self.channel_interface_dict}')
+    def transmit_to(self, channel_list):
+        '''
 
-    def transmit(self,channel_list):
+        '''
         packets_to_transmit = []
         if self.transmit_nokori > 0 and self.transmit_nokori < 1:
             self.transmit_nokori += self.transmit_rate
@@ -236,28 +264,48 @@ class MultipleChannelNode(Node):
                     print(f'Couldnt find for {chan.name}')
         else:
             channel_list[0].transmit_access(packets_to_transmit)
+
 
 class ImprovedMultipleChannelNode(Node):
     def __init__(self, time_step, packet_size, queue_size,
-                    transmit_rate, gen_rate, destinations=None,
-                    type=None, channel_interface_list=None):
+                 transmit_rate, gen_rate, destinations=None,
+                 type=None, channel_interface_list=None):
+        '''
+        Initialize a Node object with support for multiple channels. Even ratio
+        numbers are assigned to each channel in self.channel_interface_dict.
+
+        :param time_step:
+        :param queue_size:
+        :param transmit_rate:
+        :param gen_rate:
+        :param destinations: List of Node objects, optional
+        :param type: String denoting type of Node object, optional
+        :param channel_interface_list: List of (String) names of channels the
+                                       Node object can use/has access to
+        '''
         super().__init__(time_step, packet_size, queue_size,
-                            transmit_rate, gen_rate, destinations,
-                            type)
+                         transmit_rate, gen_rate, destinations,
+                         type)
         self.channel_interface_dict = {}
-        # for channel in channel_interface_list:
-        #     self.channel_interface_dict[channel.name] = 1/len(channel_interface_list)
-        self.channel_interface_dict = {'main1':0.35, 'main2':0.25, 'wimax': 0.2, 'wifi':0.2}
+        for channel in channel_interface_list:
+            self.channel_interface_dict[channel] = \
+                        1/len(channel_interface_list)
 
-        print(f'Channel Interfaces: {self.channel_interface_dict}')
+    def transmit_to(self, channel_list):
+        '''
+        Return a list of packets fetched from the nodes queue
+        with a total bit count of more or less the nodes
+        transmit rate.
 
-    def transmit(self,channel_list):
+        :return: List of Packet tuples, can be empty
+        '''
+        print(f'Node {self.id} transmitting')
         packets_to_transmit = []
         if self.transmit_nokori > 0 and self.transmit_nokori < 1:
             self.transmit_nokori += self.transmit_rate
         else:
             self.transmit_nokori = np.random.normal(self.transmit_rate)
-        to_send_bit_count = 0
+        to_send_bit_count = 0  # Var to check how much is to be sent
         while(self.transmit_nokori > 1):
             try:
                 packet = self.queue.popleft()
@@ -266,27 +314,30 @@ class ImprovedMultipleChannelNode(Node):
             else:
                 to_send_bit_count += packet.size
                 packets_to_transmit.append(packet)
-            self.transmit_nokori = self.transmit_nokori - 1
+            self.transmit_nokori = self.transmit_nokori - 1  # TODO: logic
         total_size = 0
+
         for p in packets_to_transmit:
             total_size += p.size
-        self.metadata[2].append(total_size)
+            self.metadata['sent_count'] += 1  # Packet count
+        self.metadata['byte_send'].append(total_size)  # Exact bit count
 
+        # Decide how many packets sent to each channel
         packets_to_transmit_per_channel = defaultdict(None)
         if len(packets_to_transmit) > len(self.channel_interface_dict.keys()):
             for key in self.channel_interface_dict.keys():
                 i = int(self.channel_interface_dict[key] * len(packets_to_transmit))
                 for _ in range(i):
                     try:
-                        packets_to_transmit_per_channel[key] = packets_to_transmit.pop()
-                    except:
+                        packets_to_transmit_per_channel[key] = \
+                            chpackets_to_transmit.pop()
+                    except Exception:
                         break
 
-            # input(f'packets_to_transmit_per_channel: {packets_to_transmit_per_channel}')
             for chan in channel_list:
                 try:
-                    chan.transmit_access([packets_to_transmit_per_channel[chan.name]]) # Need to pass list to transmit access
-                except:
+                    chan.receive([packets_to_transmit_per_channel[chan.name]])  # Need to pass list to transmit access
+                except Exception:
                     print(f'Couldnt find for {chan.name}')
         else:
-            channel_list[0].transmit_access(packets_to_transmit)
+            channel_list[0].receive(packets_to_transmit)
