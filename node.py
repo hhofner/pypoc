@@ -11,6 +11,11 @@ class Packet:
 
     def __init__(self, path, size=1):
         '''
+        Increments the Packet class-wide generated_count variable and
+        assigns object attributes.
+
+        :param path: List of Node objects representing a path from src to dest.
+        :param size: Integer representing an arbitrary size of the Packet.
         '''
         self.size: int = size
 
@@ -18,11 +23,18 @@ class Packet:
         self._has_dropped = False
         Packet.generated_count += 1
 
-        self.path_nodes = {'past': [], 'future': []}  # ID's of nodes
+        self.path_nodes = {'past': [], 'future': []}
         self.path_nodes['past'].append(path[0])
         self.path_nodes['future'].extend(path[1:])
 
     def check_and_update_path(self, arrived_node):
+        '''
+        Check if the Node that received `this` packet aligns with
+        the path, and if so, update. If path empty, it means it
+        arrived at destination node.
+
+        :param arrived_node: Node object
+        '''
         if arrived_node is self.path_nodes['future'][0]:
             arrived_node = self.path_nodes['future'][0]
             self.path_nodes['past'].append(arrived_node)
@@ -55,6 +67,13 @@ class Node:
     count = 0
 
     def __init__(self, type):
+        '''
+        Increment Node class `count` attribute and assign it to
+        Node instance id attribute.
+
+        :param type: Integer corresponding to predefined integer types,
+            i.e. Source node, Relay node or Destination node.
+        '''
         self.id = Node.count
         Node.count += 1
 
@@ -65,7 +84,10 @@ class Node:
 
     def transmit(self, network):
         '''
-        Send packet(s) to a random destination.
+        Create Packet instance and send it to the next
+        Node destination based on the path.
+
+        :param network: Networkx Graph instance that has all info on network.
         '''
         if not self.dest_node_list:
             self.update_dest_node_list(network)
@@ -77,6 +99,8 @@ class Node:
     def relay(self, network):
         '''
         Relay one packet from queue onto the next node.
+
+        :param network: Networkx Graph instance that has all info on network.
         '''
         if self.queue:
             popped_packet = self.queue.popleft()
@@ -90,6 +114,8 @@ class Node:
         self.queue.append(received_packet)
 
     def run(self, network):
+        '''
+        '''
         if self.type == 0:
             self.transmit(network)
         elif self.type == 1:
