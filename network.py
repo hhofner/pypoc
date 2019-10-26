@@ -1,3 +1,5 @@
+import matplotlib.pyplot as plt
+
 import networkx as nx
 from node import Packet, Node
 
@@ -31,9 +33,15 @@ def run_network(ticks):
             node.run(network)
         tick += 1
 
+    return network
+
 
 if __name__ == '__main__':
-    run_network(15)
+    net = run_network(15)
 
-    print(f'Generated : {Packet.generated_count}')
-    print(f'Arrived : {Packet.arrived_count}')
+    print(f'\tGenerated Packets: {Packet.generated_count}')
+    print(f'\ttArrived Packets: {Packet.arrived_count}')
+
+    print(f'\t{"#"*10}Individual Node Data{"#"*10}')
+    for n in net.nodes:
+        print(n.get_pretty_data())
