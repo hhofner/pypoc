@@ -1,4 +1,5 @@
 from collections import deque
+import matplotlib.pyplot as plt
 import random
 
 import networkx as nx
@@ -21,6 +22,7 @@ class Packet:
 
         self._has_arrived = False
         self._has_dropped = False
+        self.id = Packet.generated_count
         Packet.generated_count += 1
 
         self.path_nodes = {'past': [], 'future': []}
@@ -62,6 +64,12 @@ class Packet:
     def next_node(self):
         return self.path_nodes['future'][0]
 
+    def __str__(self):
+        return f'Packet {self.id}'
+
+    def __repr__(sef):
+        return f'Packet(ID:{self.id}, SIZE:{self.size}, PATH{self.path})'
+
 
 class Node:
     count = 0
@@ -69,7 +77,7 @@ class Node:
     def __init__(self, type):
         '''
         Increment Node class `count` attribute and assign it to
-        Node instance id attribute.
+        Node instance id attribute. Create data element.
 
         :param type: Integer corresponding to predefined integer types,
             i.e. Source node, Relay node or Destination node.
@@ -81,6 +89,8 @@ class Node:
         self.queue = deque()
 
         self.type = type
+
+        self.initalize_data()
 
     def transmit(self, network):
         '''
@@ -94,6 +104,8 @@ class Node:
         dest = random.choice(self.dest_node_list)
         path = nx.shortest_path(network, self, dest)
         packet = Packet(path)
+
+        self.data['transmited_packets'].append(packet)
         packet.next_node.receive(packet)
 
     def relay(self, network):
@@ -105,6 +117,8 @@ class Node:
         if self.queue:
             popped_packet = self.queue.popleft()
             popped_packet.next_node.receive(popped_packet)
+
+            self.data['relayed_packets'].append(popped_packet)
 
     def receive(self, received_packet):
         '''
@@ -126,6 +140,31 @@ class Node:
             for node in network.nodes:
                 if node.type == 2:
                     self.dest_node_list.append(node)
+
+    def initalize_data(self):
+        '''
+        Initialize data structure for node.
+        '''
+        self.data = {'queue_size': [len(self.queue)],
+                     'transmited_packets': [],
+                     'relayed_packets': [],
+                     'received_packets': [],
+                     }
+
+    def get_pretty_data(self):
+        '''
+        Create a pretty string representation of the nodes
+        data.
+
+        :return pretty_data: String representing the data, for printing.
+        '''
+        pretty_data = f'Node {self.id}'
+        for key in self.data.keys():
+            pretty_data += f'\n\t{key}\n\t\t'
+            length = len(self.data[key])
+            pretty_data += f'length: {length}'
+
+        return pretty_data
 
     def __hash__(self):
         return self.id
