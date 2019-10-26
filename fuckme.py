@@ -1,5 +1,5 @@
 import networkx as nx
-from fuckmenode import Packet, Node
+from node import Packet, Node
 
 
 def run_network(ticks):
