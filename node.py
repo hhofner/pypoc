@@ -10,6 +10,8 @@ class Packet:
     generated_count = 0
 
     def __init__(self, path, size=1):
+        '''
+        '''
         self.size: int = size
 
         self._has_arrived = False

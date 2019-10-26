@@ -32,7 +32,8 @@ def run_network(ticks):
         tick += 1
 
 
-run_network(15)
+if __name__ == '__main__':
+    run_network(15)
 
-print(f'Generated : {Packet.generated_count}')
-print(f'Arrived : {Packet.arrived_count}')
+    print(f'Generated : {Packet.generated_count}')
+    print(f'Arrived : {Packet.arrived_count}')
