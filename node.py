@@ -1,4 +1,4 @@
-from collections import deque
+from collections import deque, defaultdict
 import matplotlib.pyplot as plt
 import random
 
@@ -67,8 +67,8 @@ class Packet:
     def __str__(self):
         return f'Packet {self.id}'
 
-    def __repr__(sef):
-        return f'Packet(ID:{self.id}, SIZE:{self.size}, PATH{self.path})'
+    def __repr__(self):
+        return f'Packet(ID:{self.id}, SIZE:{self.size})'
 
 
 class Node:
@@ -89,6 +89,9 @@ class Node:
         self.queue = deque()
 
         self.type = type
+        self.time = 0
+
+        self.edges = defaultdict(lambda: None)
 
         self.initalize_data()
 
@@ -96,6 +99,12 @@ class Node:
         '''
         Create Packet instance and send it to the next
         Node destination based on the path.
+
+        Node (self) will ask the passed in network object if it can send
+        the generated packet. At the same time, the Node (self) will try
+        and save an `edge` reference for the next node, so for when it is
+        used again it doesn't require the network object to iterate over all
+        edges in the network.
 
         :param network: Networkx Graph instance that has all info on network.
         '''
@@ -105,8 +114,19 @@ class Node:
         path = nx.shortest_path(network, self, dest)
         packet = Packet(path)
 
-        self.data['transmited_packets'].append(packet)
-        packet.next_node.receive(packet)
+        # `can_send_through()` returns Tuple, (Bool, edge)
+        can_send, edge = network.can_send_through('Channel', 
+                                                     self, 
+                                                     packet.next_node, 
+                                                     packet.size, 
+                                                     self.edges[packet.next_node])
+        if can_send:
+            self.data['transmited_packets'].append(packet)
+            self.edges[packet.next_node] = edge
+            packet.next_node.receive(packet)
+        else:
+            self.edges[packet.next_node] = edge
+            input(f'Can not sent data for Node {self.id}')
 
     def relay(self, network):
         '''
@@ -134,6 +154,8 @@ class Node:
             self.transmit(network)
         elif self.type == 1:
             self.relay(network)
+        
+        self.time += 1
 
     def update_dest_node_list(self, network, dest_ids=None):
         if not dest_ids:
@@ -169,5 +191,26 @@ class Node:
     def __hash__(self):
         return self.id
 
+    def __eq__(self, other):
+        return (self.__class__ == other.__class__
+               and self.id == other.id)
+
+    def  __str__(self):
+        return f'Node {self.id}'
+
     def __repr__(self):
-        return f'(id:{self.id},t:{self.type})'
+        return f'(Node id:{self.id},t:{self.type})'
+
+
+class VaryingTransmissionNode(Node):
+    def __init__(self, type, time_conversion, transmit_rate, packet_size_list):
+        '''
+        '''
+        super.__init__(type)
+        self.transmit_rate = transmit_rate * time_conversion
+        self.packet_size_list = packet_size_list
+
+    def transmit(self, network):
+        if not self.dest_node_list:
+            self.update_dest_node_list(network)
+        pass
