@@ -4,6 +4,9 @@ import random
 
 import networkx as nx
 
+verbose = True
+verboseprint = print if verbose else lambda *a, **k: None
+
 
 class Packet:
     arrived_count = 0
@@ -53,6 +56,7 @@ class Packet:
     def arrived(self):
         if not self._has_arrived:
             Packet.arrived_count += 1
+            print('Arrived!')
         self._has_arrived = True
 
     def dropped(self):
@@ -86,6 +90,7 @@ class Node:
         Node.count += 1
 
         self.dest_node_list = []
+        self.wait_queue = deque()
         self.queue = deque()
 
         self.type = type
@@ -116,17 +121,35 @@ class Node:
 
         # `can_send_through()` returns Tuple, (Bool, edge)
         can_send, edge = network.can_send_through('Channel', 
-                                                     self, 
-                                                     packet.next_node, 
-                                                     packet.size, 
-                                                     self.edges[packet.next_node])
+                                                  self,
+                                                  packet.next_node,
+                                                  packet.size,
+                                                  self.edges[packet.next_node])
         if can_send:
             self.data['transmited_packets'].append(packet)
             self.edges[packet.next_node] = edge
             packet.next_node.receive(packet)
+            verboseprint(f'{self} Sending {packet} to {packet.next_node}')
         else:
             self.edges[packet.next_node] = edge
             input(f'Can not sent data for Node {self.id}')
+
+    def transmit_limited(self, network, count):
+        '''
+        Transmit a limited number of times, based on the passed
+        count variable.
+
+        :param count: number of packets to transmit
+        '''
+        try:
+            now_count = self.transmitting_count
+        except:
+            self.transmitting_count = 0
+            now_count = self.transmitting_count
+        
+        if now_count < count:
+            self.transmit(network)
+            self.transmitting_count += 1
 
     def relay(self, network):
         '''
@@ -134,18 +157,30 @@ class Node:
 
         :param network: Networkx Graph instance that has all info on network.
         '''
-        if self.queue:
-            popped_packet = self.queue.popleft()
-            popped_packet.next_node.receive(popped_packet)
 
-            self.data['relayed_packets'].append(popped_packet)
+        if self.queue:
+            packet = self.queue[0]
+            can_send, edge = network.can_send_through('Channel', 
+                                                      self, 
+                                                      packet.next_node, 
+                                                      packet.size, 
+                                                      self.edges[packet.next_node])
+            if can_send:
+                popped_packet = self.queue.popleft()
+                self.edges[packet.next_node] = edge
+                self.data['relayed_packets'].append(popped_packet)
+                popped_packet.next_node.receive(popped_packet)
+            else:
+                self.edges[packet.next_node] = edge
+                print(f'Can not relay for {self}')    
 
     def receive(self, received_packet):
         '''
         Update packet path and append to node queue.
         '''
+        verboseprint(f'{self} received {received_packet}')
         received_packet.check_and_update_path(self)
-        self.queue.append(received_packet)
+        self.wait_queue.append(received_packet)
 
     def run(self, network):
         '''
@@ -154,6 +189,9 @@ class Node:
             self.transmit(network)
         elif self.type == 1:
             self.relay(network)
+
+        self.update_queue()
+        self.update_data()
         
         self.time += 1
 
@@ -173,6 +211,19 @@ class Node:
                      'received_packets': [],
                      }
 
+    def update_data(self):
+        self.data['queue_size'].append(len(self.queue))
+
+    def update_queue(self):
+        '''
+        Push all the packets in wait_queue onto the main
+        queue. This is done to give time for packets to propagate
+        at every tick, instead of having the packet flow to its 
+        destination in one tick.
+        '''
+        self.queue.extend(self.wait_queue)
+        self.wait_queue.clear()
+
     def get_pretty_data(self):
         '''
         Create a pretty string representation of the nodes
@@ -182,9 +233,14 @@ class Node:
         '''
         pretty_data = f'Node {self.id}'
         for key in self.data.keys():
-            pretty_data += f'\n\t{key}\n\t\t'
-            length = len(self.data[key])
-            pretty_data += f'length: {length}'
+            if key == 'queue_size':
+                pretty_data += f'\n\t{key}\n\t\t'
+                length = self.data[key][-1]
+                pretty_data += f'length: {length}'
+            else:
+                pretty_data += f'\n\t{key}\n\t\t'
+                length = len(self.data[key])
+                pretty_data += f'length: {length}'
 
         return pretty_data
 
