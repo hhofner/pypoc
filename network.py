@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 
 import networkx as nx
-from node import Packet, Node
+from node import Packet, Node, VaryingTransmissionNode
 
 verbose = True
 verboseprint = print if verbose else lambda *a, **k: None
@@ -42,12 +42,20 @@ class PyPocNetwork(nx.Graph):
             else:
                 return (False, received_edge)
 
+    def reset_bandwidths(self):
+        #TODO: Consider, at the end of every tick do we reset the load number
+        # on each channel? Given that, what will happen next tick? And does this
+        # make sense ?
+        for edge in self.edges:
+            v, u = edge
+            self[v][u]['Channel'] = 0
+
 
 def run_network(ticks):
     network = PyPocNetwork()
 
     '''Create the topology'''
-    src_nodes = [Node(0), Node(0)]
+    src_nodes = [VaryingTransmissionNode(0, 1, 5, 1), Node(0)]
     relay_nodes_src_side = [Node(1) for _ in range(3)]
     relay_nodes_dest_side = [Node(1) for _ in range(3)]
     dest_nodes = [Node(2), Node(2)]
@@ -71,13 +79,13 @@ def run_network(ticks):
         for node in network.nodes:
             node.run(network)
         tick += 1
-        print(f'Arrived packets: {Packet.arrived}')
+        network.reset_bandwidths()
 
     return network
 
 
 if __name__ == '__main__':
-    net = run_network(20)
+    net = run_network(400)
 
     print(f'\tGenerated Packets: {Packet.generated_count}')
     print(f'\ttArrived Packets: {Packet.arrived_count}')
