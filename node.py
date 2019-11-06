@@ -186,7 +186,7 @@ class Node:
         '''
         '''
         if self.type == 0:
-            self.transmit(network)
+            self.transmit_limited(network, 5)
         elif self.type == 1:
             self.relay(network)
 
@@ -262,11 +262,10 @@ class VaryingTransmissionNode(Node):
     def __init__(self, type, time_conversion, transmit_rate, packet_size_list):
         '''
         '''
-        super.__init__(type)
+        super().__init__(type)
         self.transmit_rate = transmit_rate * time_conversion
         self.packet_size_list = packet_size_list
 
     def transmit(self, network):
-        if not self.dest_node_list:
-            self.update_dest_node_list(network)
-        pass
+        for _ in range(self.transmit_rate):
+            super().transmit(network)
