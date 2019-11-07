@@ -1,5 +1,7 @@
 from collections import deque, defaultdict
 import matplotlib.pyplot as plt
+import numpy as np
+import math
 import random
 
 import networkx as nx
@@ -100,7 +102,7 @@ class Node:
 
         self.initalize_data()
 
-    def transmit(self, network):
+    def transmit(self, network, size=1):
         '''
         Create Packet instance and send it to the next
         Node destination based on the path.
@@ -116,8 +118,8 @@ class Node:
         if not self.dest_node_list:
             self.update_dest_node_list(network)
         dest = random.choice(self.dest_node_list)
-        path = nx.shortest_path(network, self, dest)
-        packet = Packet(path)
+        path = nx.shortest_path(network, self, dest, weight='Channel')
+        packet = Packet(path, size=size)
 
         # `can_send_through()` returns Tuple, (Bool, edge)
         can_send, edge = network.can_send_through('Channel', 
@@ -186,7 +188,7 @@ class Node:
         '''
         '''
         if self.type == 0:
-            self.transmit_limited(network, 5)
+            self.transmit(network)
         elif self.type == 1:
             self.relay(network)
 
@@ -258,14 +260,18 @@ class Node:
         return f'(Node id:{self.id},t:{self.type})'
 
 
-class VaryingTransmissionNode(Node):
+class VaryingTransmitNode(Node):
     def __init__(self, type, time_conversion, transmit_rate, packet_size_list):
-        '''
-        '''
         super().__init__(type)
         self.transmit_rate = transmit_rate * time_conversion
         self.packet_size_list = packet_size_list
 
     def transmit(self, network):
-        for _ in range(self.transmit_rate):
-            super().transmit(network)
+        transmit_count = max(0, np.random.normal(self.transmit_rate))
+        for _ in range(math.floor(transmit_count)):
+            super().transmit(network, 0.67)
+
+class VaryingRelayNode(Node):
+    def __init__(self, type, time_conversion, relay_rate):
+        super().__init__(type)
+        self.relay_rate = relay_rate * time_conversion
