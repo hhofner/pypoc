@@ -1,7 +1,10 @@
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import itertools
+import seaborn as sns
 
 import networkx as nx
-from node import Packet, Node, VaryingTransmissionNode
+from node import Packet, Node, VaryingTransmitNode
 
 verbose = True
 verboseprint = print if verbose else lambda *a, **k: None
@@ -13,7 +16,7 @@ class PyPocNetwork(nx.Graph):
     
     def can_send_through(self, key, node1, node2, bytes, received_edge=None):
         if key != 'Channel':
-            print(f'Warning: Did you really mean {key}?')
+            input(f'Warning: Did you really mean {key}?')
         
         v = None
         u = None
@@ -55,7 +58,7 @@ def run_network(ticks):
     network = PyPocNetwork()
 
     '''Create the topology'''
-    src_nodes = [VaryingTransmissionNode(0, 1, 5, 1), Node(0)]
+    src_nodes = [VaryingTransmitNode(0, 1, 5, 1), Node(0)]
     relay_nodes_src_side = [Node(1) for _ in range(3)]
     relay_nodes_dest_side = [Node(1) for _ in range(3)]
     dest_nodes = [Node(2), Node(2)]
@@ -85,7 +88,7 @@ def run_network(ticks):
 
 
 if __name__ == '__main__':
-    net = run_network(400)
+    net = run_network(10)
 
     print(f'\tGenerated Packets: {Packet.generated_count}')
     print(f'\ttArrived Packets: {Packet.arrived_count}')
@@ -93,3 +96,19 @@ if __name__ == '__main__':
     print(f'\t{"#"*10}Individual Node Data{"#"*10}')
     for n in net.nodes:
         print(n.get_pretty_data())
+
+    ## Plotting ##
+    sns.set()
+    sns.set_style('whitegrid')
+    sns.set_context('poster')
+    palette = itertools.cycle(sns.color_palette())
+    patches = []
+    for n in net.nodes:
+        if n.type == 1:
+            now_color = next(palette)
+            queue_lengths = n.data['queue_size']
+            plt.plot(queue_lengths, color=now_color)
+            patches.append(mpatches.Patch(color=now_color, label=n))
+    plt.legend(handles=patches)
+
+plt.show()
