@@ -15,6 +15,11 @@ class Packet:
     dropped_count = 0
     generated_count = 0
 
+    def reset():
+        Packet.arrived_count = 0
+        Packet.dropped_count = 0
+        Packet.generated_count = 0
+
     def __init__(self, path, size=1):
         '''
         Increments the Packet class-wide generated_count variable and
@@ -92,17 +97,18 @@ class Node:
         Node.count += 1
 
         self.dest_node_list = []
-        self.wait_queue = deque()
-        self.queue = deque()
+        self.wait_queue = []
+        self.queue = []
 
         self.type = type
         self.time = 0
+        self.packet_size = 1
 
         self.edges = defaultdict(lambda: None)
 
         self.initalize_data()
 
-    def transmit(self, network, size=1):
+    def transmit(self, network):
         '''
         Create Packet instance and send it to the next
         Node destination based on the path.
@@ -115,12 +121,11 @@ class Node:
 
         :param network: Networkx Graph instance that has all info on network.
         '''
-        if not self.dest_node_list:
-            self.update_dest_node_list(network)
-        dest = random.choice(self.dest_node_list)
-        path = nx.shortest_path(network, self, dest, weight='Channel')
-        packet = Packet(path, size=size)
+        packet = self.create_packet(network)
 
+        self._transmit(packet, network)
+
+    def _transmit(self, packet, network):
         # `can_send_through()` returns Tuple, (Bool, edge)
         can_send, edge = network.can_send_through('Channel', 
                                                   self,
@@ -130,11 +135,12 @@ class Node:
         if can_send:
             self.data['transmited_packets'].append(packet)
             self.edges[packet.next_node] = edge
-            packet.next_node.receive(packet)
             verboseprint(f'{self} Sending {packet} to {packet.next_node}')
+            packet.next_node.receive(packet)
         else:
             self.edges[packet.next_node] = edge
-            input(f'Can not sent data for Node {self.id}')
+            print(f'Can not sent data for Node {self.id}->Node {packet.next_node}')
+            self.queue.append
 
     def transmit_limited(self, network, count):
         '''
@@ -159,22 +165,23 @@ class Node:
 
         :param network: Networkx Graph instance that has all info on network.
         '''
-
-        if self.queue:
-            packet = self.queue[0]
+        to_relay_packets = []
+        for packet in self.queue:
             can_send, edge = network.can_send_through('Channel', 
                                                       self, 
                                                       packet.next_node, 
                                                       packet.size, 
                                                       self.edges[packet.next_node])
             if can_send:
-                popped_packet = self.queue.popleft()
+                to_relay_packets.append(packet)
                 self.edges[packet.next_node] = edge
-                self.data['relayed_packets'].append(popped_packet)
-                popped_packet.next_node.receive(popped_packet)
             else:
                 self.edges[packet.next_node] = edge
-                print(f'Can not relay for {self}')    
+        
+        for p in to_relay_packets:
+            popped_packet = self.queue.pop(self.queue.index(p))
+            popped_packet.next_node.receive(popped_packet)
+            self.data['relayed_packets'].append(popped_packet)
 
     def receive(self, received_packet):
         '''
@@ -188,8 +195,10 @@ class Node:
         '''
         '''
         if self.type == 0:
-            self.transmit(network)
+            print(f'{self} transmitting.')
+            self.transmit_limited(network, 10)
         elif self.type == 1:
+            print(f'{self} relaying.')
             self.relay(network)
 
         self.update_queue()
@@ -246,6 +255,13 @@ class Node:
 
         return pretty_data
 
+    def create_packet(self, network):
+        if not self.dest_node_list:
+            self.update_dest_node_list(network)
+        dest = random.choice(self.dest_node_list)
+        path = nx.shortest_path(network, self, dest, weight='Channel')
+        return Packet(path, size=self.packet_size)
+
     def __hash__(self):
         return self.id
 
@@ -260,18 +276,55 @@ class Node:
         return f'(Node id:{self.id},t:{self.type})'
 
 
-class VaryingTransmitNode(Node):
-    def __init__(self, type, time_conversion, transmit_rate, packet_size_list):
+class MovingNode(Node):
+    def __init__(self, type):
         super().__init__(type)
-        self.transmit_rate = transmit_rate * time_conversion
-        self.packet_size_list = packet_size_list
+        self.x = 0
+        self.y = 0
+        self.z = 0
+
+    def initalize_data(self):
+        super().initalize_data()
+        self.data.update({'position': []})
+
+
+class VaryingTransmitNode(MovingNode):
+    def __init__(self, type, time_conversion, transmit_rate, packet_size):
+        super().__init__(type)
+        self.time_conversion = time_conversion
+        self.transmit_rate = transmit_rate
+        self.packet_size = packet_size
+
+        self.generated_queue = []  # list of generated packets to be sent
+        self.transmit_step_count = None  # number of transmissions to be made
 
     def transmit(self, network):
-        transmit_count = max(0, np.random.normal(self.transmit_rate))
-        for _ in range(math.floor(transmit_count)):
-            super().transmit(network, 0.67)
+        '''
+        '''
+        if self.transmit_rate < self.packet_size:
+            raise Exception(f'Packet Size can not be larger than Transmit Rate {self.packet_size} > {self.transmit_rate}')
 
-class VaryingRelayNode(Node):
+        # First block creates data to be sent. A 10 MByte data will be split into 100 packets, 
+        # if packet size is 100KByte. 
+        if self.transmit_step_count is None:
+            number_of_packet = int(self.transmit_rate / self.packet_size)
+            for _ in range(number_of_packet):
+                self.generated_queue.append(self.create_packet(network))
+            self.transmit_step_count = int(1 / self.time_conversion)  # expecting an integer value like 100, 10, etc
+        else:  # Second block sends as many packets as needed per time step.
+            to_send_count = int((self.transmit_rate * self.time_conversion) / self.packet_size)
+            for _ in range(to_send_count):
+                packet = self.generated_queue.pop()
+                self._transmit(packet, network)
+            self.transmit_step_count -= 1
+            if self.transmit_step_count == 0:
+                self.transmit_step_count = None
+
+class VaryingRelayNode(MovingNode):
     def __init__(self, type, time_conversion, relay_rate):
         super().__init__(type)
         self.relay_rate = relay_rate * time_conversion
+    
+    def relay(self, network):
+        for _ in range(math.floor(self.relay_rate)):
+            super().relay(network)
