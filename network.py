@@ -5,16 +5,72 @@ import seaborn as sns
 import pandas as pd
 
 import networkx as nx
-from node import Packet, Node, VaryingTransmitNode, VaryingRelayNode
+from node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode
 
 verbose = True
 verboseprint = print if verbose else lambda *a, **k: None
 
 
 class PyPocNetwork(nx.Graph):
+    def initialize(self, packet_size):
+        self.packet_size = packet_size
+        self.initialize_step_values()
+
+        self.overall_throughput = 0
+
+    def initialize_step_values(self):
+        highest_bandwidth = self.find_highest_bandwidth()
+        self.step_value = self.packet_size/highest_bandwidth
+
+        for node in self.nodes:
+            node.step_value = self.step_value
+
+    def find_highest_bandwidth(self):
+        highest = None
+        for edge in self.edges:
+            v, u = edge
+            if highest is None:
+               highest = self[u][v]['Bandwidth']
+            elif self[u][v]['Bandwidth'] < highest:
+                highest = self[u][v]['Bandwidth']
+        
+        return highest
+
+    def update_throughput(self, packet):
+        try:
+            self.total_byte_count += packet.size
+        except:
+            self.total_byte_count = packet.size
+        
+        # time_to_dest = self.tick - packet.born_tick
+        # self.overall_throughput = packet.size / (time_to_dest * self.step_value)
+
+        self.overall_throughput = self.total_byte_count / (self.tick * self.step_value)
+
     def get(self, key, node1, node2):
         return self[node1][node2][str(key)]
     
+    def run_for(self, minutes):
+        seconds = minutes * 60
+        ticks = seconds / self.step_value
+        self.tick = 0
+        while self.tick < ticks:
+            print(f'\n~~~~ TIME {self.tick} ~~~~\n')
+            for node in self.nodes:
+                print(f'---->: {node}')
+                node.run(self)
+            self.tick += 1
+        print(f'########### FINISH ###########')
+        print(f'\tGENERATED PACKETS: {Packet.generated_count}')
+        print(f'\tARRIVED PACKETS: {Packet.arrived_count}')
+        print(f'\tOVERALL THROUGHPUT: {self.overall_throughput/1e3} KBps')
+
+    def reset(self):
+        Packet.reset()
+        
+
+
+    # Deprecation
     def can_send_through(self, key, node1, node2, bytes, received_edge=None):
         if key != 'Channel':
             input(f'Warning: Did you really mean {key}?')
@@ -46,6 +102,7 @@ class PyPocNetwork(nx.Graph):
             else:
                 return (False, received_edge)
 
+    # Deprecation
     def reset_bandwidths(self):
         #TODO: Consider, at the end of every tick do we reset the load number
         # on each channel? Given that, what will happen next tick? And does this
@@ -55,44 +112,42 @@ class PyPocNetwork(nx.Graph):
             self[v][u]['Channel'] = 0
 
 
-def run_network(ticks, trate=None, rrate=None):
-    transmit_rate = trate if trate else 1
-    relay_rate = rrate if rrate else 1
+def run_network(minutes, src_node_count=1, rel_node_count=12):
     network = PyPocNetwork()
 
     '''Create the topology'''
-    src_nodes = [VaryingTransmitNode(0, 1, transmit_rate, 1)]
-    relay_nodes_src_side = [Node(1) for _ in range(3)]
-    relay_nodes_dest_side = [Node(1) for _ in range(3)]
-    dest_nodes = [Node(2), Node(2)]
+    src_nodes = [VaryingTransmitNode(0, 1, None, 500) for _ in range(src_node_count)]
+    relay_nodes_src_side = [VaryingRelayNode(1, 1, None, 500) for _ in range(int(rel_node_count/2))]
+    relay_nodes_dest_side = [VaryingRelayNode(1, 1, None, 500) for _ in range(int(rel_node_count/2))]
+    dest_nodes = [MovingNode(2, 1, None), MovingNode(2, 1, None), MovingNode(2, 1, None), MovingNode(2, 1, None),
+                  MovingNode(2, 1, None), MovingNode(2, 1, None), MovingNode(2, 1, None), MovingNode(2, 1, None)]
 
-    c1 = [(src, rel, {'Bandwidth': 50, 'Channel': 0})
+    c1 = [(src, rel, {'Bandwidth': 1000, 'Channel': 0})
           for rel in relay_nodes_src_side for src in src_nodes]
 
-    c2 = [(rel, dest, {'Bandwidth': 50, 'Channel': 0})
+    c2 = [(rel, dest, {'Bandwidth': 1000, 'Channel': 0})
           for rel in relay_nodes_dest_side for dest in dest_nodes]
 
-    c3 = [(rel1, rel2, {'Bandwidth': 50, 'Channel': 0})
+    c3 = [(rel1, rel2, {'Bandwidth': 2000, 'Channel': 0})
           for rel1 in relay_nodes_dest_side for rel2 in relay_nodes_src_side]
 
     network.add_edges_from(c1)
     network.add_edges_from(c2)
     network.add_edges_from(c3)
 
-    tick = 0
-    while tick < ticks:
-        print(f'~~Time {tick} ~~')
-        for node in network.nodes:
-            print(f'Accessing node: {node}')
-            node.run(network)
-        tick += 1
-        network.reset_bandwidths()
+    network.initialize(packet_size=500)
+    network.run_for(minutes)
 
     return network
 
+def calculate_cont_throughput(network, prev_data=None):
+    '''
+    Calculate the continuous throughput of a network 
+    '''
+    pass
 
 if __name__ == '__main__':
-    # net = run_network(10)
+    # net = run_network(1)  # TODO: Currently at limited transmission
 
     # print(f'\tGenerated Packets: {Packet.generated_count}')
     # print(f'\ttArrived Packets: {Packet.arrived_count}')
@@ -110,7 +165,7 @@ if __name__ == '__main__':
     fig, (ax1, ax2) = plt.subplots(1,2)
     palette = itertools.cycle(sns.color_palette())
 
-    patches = []
+    # patches = []
     # for n in net.nodes:
     #     if n.type == 1:
     #         now_color = next(palette)
@@ -120,21 +175,27 @@ if __name__ == '__main__':
     # plt.legend(handles=patches)
 
     ## Throughput Plotting ##
-    queue_sizes = []
+    simple_network = None
     throughputs = []
-    for tr in range(4, 32, 4):
-        net = run_network(20, trate=tr)
-        temp = []
-        for node in net:
-            temp.append(len(node.queue))
-        queue_sizes.append(temp)
-        throughputs.append(Packet.arrived_count/Packet.generated_count)
+    for count in range(1, 20):
+        net = run_network(1, src_node_count= count, rel_node_count=12)
+        if simple_network is None:
+            simple_network = net
+        throughputs.append(net.overall_throughput)
         Packet.reset()
     
-    data = pd.Series(throughputs)
-    ax = sns.lineplot(data=data, ax=ax1)
-    ax.set(title='Throughput Performance')
+    data = pd.DataFrame(throughputs, [i for i in range(1,20)])
+    ax1.plot([i for i in range(1,20)], throughputs, marker='o')
+    ax1.set_title('Throughput Performance')
+    ax1.set_xlabel('Number of SRC Nodes')
+    ax1.set_ylabel('KBps')
 
-    # fig, ax = plt.subplots()
+    nx.draw_networkx(simple_network, ax=ax2)
+    ax2.set(title='Example Network Representation')
+    ax2.tick_params(axis='both', which='both', bottom=False, top=False, labelbottom=False, labelleft=False)
+    ax2.text(0, 5, 'Packet Size: 500 Bytes',
+            bbox={'facecolor': 'red', 'alpha': 0.5, 'pad': 10})
+    ax2.text(0, 5, 'Bandwidths: 10KBps, 20KBps',
+            bbox={'facecolor': 'red', 'alpha': 0.5, 'pad': 10})        
 
-plt.show()
+    plt.show()
