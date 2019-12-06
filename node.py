@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import math
 import random
+import itertools
 
 import networkx as nx
 
@@ -202,6 +203,7 @@ class Node:
         self.wait_queue.append(received_packet)
         if self.type == 2:
             network.update_throughput(received_packet)
+        self.data['received_packets'].append(received_packet)
 
     def run(self, network):
         '''
@@ -223,6 +225,9 @@ class Node:
             for node in network.nodes:
                 if node.type == 2:
                     self.dest_node_list.append(node)
+        
+        if len(self.dest_node_list) == 0:
+            raise Exception(f'No destinations registered for node {self}')
 
     def initalize_data(self):
         '''
@@ -343,13 +348,46 @@ class MovingNode(Node):
 
 
 class VaryingTransmitNode(MovingNode):
-    def __init__(self, type, step_value, mobility_model, packet_size):
+    def __init__(self, type, step_value, mobility_model, packet_size, gen_rate):
         super().__init__(type, step_value, mobility_model)
-        self.neighbor_wait_time = {}
-        self.neighbors = {}
+        self.neighbor_wait_time = {}  # Counter for every neighor when the next step to transmit is
+        self.neighbors = {}  # Neighbors and the corresponding bandwidths
+        
+        self.neighbor = None
+        self.transmit_counter = None
+        self.gen_step = None  # The time it takes to transmit next
+
         self.packet_size = packet_size
+        self.gen_rate = gen_rate
+
 
     def transmit(self, network):
+        # Intialize neighbors
+        if len(self.neighbors) == 0:
+            self.update_neighbor_counter(network)
+
+        # First loop ever
+        if self.transmit_counter is None:
+            packet = self.create_packet(network, next(self.neighbor))
+            packet.next_node.receive(network, packet)
+            self.data['transmited_packets'].append(packet)
+            
+            self.transmit_counter = self.gen_step
+
+        elif self.transmit_counter > 1:
+            for _ in range(int(self.transmit_counter)):
+                packet = self.create_packet(network, next(self.neighbor))
+                packet.next_node.receive(network, packet)
+                self.data['transmited_packets'].append(packet)
+                self.transmit_counter -= 1
+                print('Transmitted')
+            
+            self.transmit_counter += self.gen_step
+        else:
+            self.transmit_counter += self.gen_step
+
+    def old_transmit(self, network):
+        ''' DEPRECATION '''
         if len(self.neighbors) == 0:
             self.update_neighbor_counter(network)
 
@@ -375,6 +413,9 @@ class VaryingTransmitNode(MovingNode):
             channel_bandwidth = network[self][neighbor]['Bandwidth']
             self.neighbor_wait_time[neighbor] = 0
             self.neighbors[neighbor] = self.packet_size / channel_bandwidth
+        
+        self.neighbor = (n for n in itertools.cycle(self.neighbors.keys()))
+        self.gen_step = (self.gen_rate/self.packet_size) * self.step_value
 
     def transmit_odd(self, network):
         '''
@@ -401,7 +442,14 @@ class VaryingTransmitNode(MovingNode):
 
 
 class VaryingRelayNode(VaryingTransmitNode):    
+    # def relay(self, network):
+    #     if len(self.neighbors) == 0:
+    #         self.update_neighbor_counter(network)
+        
     def relay(self, network):
+        ''' 
+        DEPRECATION
+        '''
         if len(self.neighbors) == 0:
             self.update_neighbor_counter(network)
 

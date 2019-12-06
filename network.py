@@ -162,7 +162,7 @@ if __name__ == '__main__':
     sns.set()
     sns.set_style('whitegrid')
     sns.set_context('poster')
-    fig, (ax1, ax2) = plt.subplots(1,2)
+    fig, (ax1, ax2, ax3) = plt.subplots(1,3)
     palette = itertools.cycle(sns.color_palette())
 
     # patches = []
@@ -177,15 +177,16 @@ if __name__ == '__main__':
     ## Throughput Plotting ##
     simple_network = None
     throughputs = []
-    for count in range(1, 30):
+    queue_lengths = []
+    for count in range(1, 20):
         net = run_network(1, src_node_count=count, rel_node_count=8)
         if simple_network is None:
             simple_network = net
         throughputs.append(net.overall_throughput/1e3)
         Packet.reset()
     
-    data = pd.DataFrame(throughputs, [i for i in range(1,30)])
-    ax1.plot([i for i in range(1,30)], throughputs, marker='o')
+    data = pd.DataFrame(throughputs, [i for i in range(1,20)])
+    ax1.plot([i for i in range(1,20)], throughputs, marker='o')
     ax1.set_title('Throughput Performance: 1Kbps Generation Rate')
     ax1.set_xlabel('Number of SRC Nodes')
     ax1.set_ylabel('Kbps')
