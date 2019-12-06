@@ -45,7 +45,7 @@ class PyPocNetwork(nx.Graph):
         # time_to_dest = self.tick - packet.born_tick
         # self.overall_throughput = packet.size / (time_to_dest * self.step_value)
 
-        self.overall_throughput = self.total_byte_count / (self.tick * self.step_value)
+        self.overall_throughput = (self.total_byte_count / (self.tick * self.step_value)) * 8
 
     def get(self, key, node1, node2):
         return self[node1][node2][str(key)]
@@ -53,7 +53,7 @@ class PyPocNetwork(nx.Graph):
     def run_for(self, minutes):
         seconds = minutes * 60
         ticks = seconds / self.step_value
-        self.tick = 0
+        self.tick = 1
         while self.tick < ticks:
             print(f'\n~~~~ TIME {self.tick} ~~~~\n')
             for node in self.nodes:
@@ -64,11 +64,12 @@ class PyPocNetwork(nx.Graph):
         print(f'\tGENERATED PACKETS: {Packet.generated_count}')
         print(f'\tARRIVED PACKETS: {Packet.arrived_count}')
         print(f'\tOVERALL THROUGHPUT: {self.overall_throughput/1e3} KBps')
+        for node in self.nodes:
+            print(node.get_pretty_data())
+        # input('yeah')
 
     def reset(self):
         Packet.reset()
-        
-
 
     # Deprecation
     def can_send_through(self, key, node1, node2, bytes, received_edge=None):
@@ -116,19 +117,18 @@ def run_network(minutes, src_node_count=1, rel_node_count=12):
     network = PyPocNetwork()
 
     '''Create the topology'''
-    src_nodes = [VaryingTransmitNode(0, 1, None, 500) for _ in range(src_node_count)]
-    relay_nodes_src_side = [VaryingRelayNode(1, 1, None, 500) for _ in range(int(rel_node_count/2))]
-    relay_nodes_dest_side = [VaryingRelayNode(1, 1, None, 500) for _ in range(int(rel_node_count/2))]
-    dest_nodes = [MovingNode(2, 1, None), MovingNode(2, 1, None), MovingNode(2, 1, None), MovingNode(2, 1, None),
-                  MovingNode(2, 1, None), MovingNode(2, 1, None), MovingNode(2, 1, None), MovingNode(2, 1, None)]
+    src_nodes = [VaryingTransmitNode(0, 1, None, 500, 125) for _ in range(src_node_count)]
+    relay_nodes_src_side = [VaryingRelayNode(1, 1, None, 500, 625) for _ in range(int(rel_node_count/2))]
+    relay_nodes_dest_side = [VaryingRelayNode(1, 1, None, 500, 625) for _ in range(int(rel_node_count/2))]
+    dest_nodes = [MovingNode(2, 1, None), MovingNode(2, 1, None), MovingNode(2, 1, None)]
 
-    c1 = [(src, rel, {'Bandwidth': 1000, 'Channel': 0})
+    c1 = [(src, rel, {'Bandwidth': 1e3, 'Channel': 0})
           for rel in relay_nodes_src_side for src in src_nodes]
 
-    c2 = [(rel, dest, {'Bandwidth': 1000, 'Channel': 0})
+    c2 = [(rel, dest, {'Bandwidth': 1e3, 'Channel': 0})
           for rel in relay_nodes_dest_side for dest in dest_nodes]
 
-    c3 = [(rel1, rel2, {'Bandwidth': 2000, 'Channel': 0})
+    c3 = [(rel1, rel2, {'Bandwidth': 1e3, 'Channel': 0})
           for rel1 in relay_nodes_dest_side for rel2 in relay_nodes_src_side]
 
     network.add_edges_from(c1)
@@ -177,21 +177,21 @@ if __name__ == '__main__':
     ## Throughput Plotting ##
     simple_network = None
     throughputs = []
-    for count in range(1, 20):
-        net = run_network(1, src_node_count= count, rel_node_count=12)
+    for count in range(1, 30):
+        net = run_network(1, src_node_count=count, rel_node_count=8)
         if simple_network is None:
             simple_network = net
-        throughputs.append(net.overall_throughput)
+        throughputs.append(net.overall_throughput/1e3)
         Packet.reset()
     
-    data = pd.DataFrame(throughputs, [i for i in range(1,20)])
-    ax1.plot([i for i in range(1,20)], throughputs, marker='o')
-    ax1.set_title('Throughput Performance')
+    data = pd.DataFrame(throughputs, [i for i in range(1,30)])
+    ax1.plot([i for i in range(1,30)], throughputs, marker='o')
+    ax1.set_title('Throughput Performance: 1Kbps Generation Rate')
     ax1.set_xlabel('Number of SRC Nodes')
-    ax1.set_ylabel('KBps')
+    ax1.set_ylabel('Kbps')
 
     nx.draw_networkx(simple_network, ax=ax2)
-    ax2.set(title='Example Network Representation')
+    ax2.set(title='Example Network Representation: 8Kbps Bandwidth')
     ax2.tick_params(axis='both', which='both', bottom=False, top=False, labelbottom=False, labelleft=False)
     ax2.text(0, 5, 'Packet Size: 500 Bytes',
             bbox={'facecolor': 'red', 'alpha': 0.5, 'pad': 10})
