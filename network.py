@@ -3,7 +3,10 @@ import matplotlib.patches as mpatches
 import itertools
 import seaborn as sns
 import pandas as pd
+import numpy as np
+import itertools
 
+import topology
 import networkx as nx
 from node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode
 
@@ -113,27 +116,10 @@ class PyPocNetwork(nx.Graph):
             self[v][u]['Channel'] = 0
 
 
-def run_network(minutes, src_node_count=1, rel_node_count=12):
+def run_network(minutes, src_node_count=4, rel_node_count=12):
     network = PyPocNetwork()
 
-    '''Create the topology'''
-    src_nodes = [VaryingTransmitNode(0, 1, None, 500, 125) for _ in range(src_node_count)]
-    relay_nodes_src_side = [VaryingRelayNode(1, 1, None, 500, 625) for _ in range(int(rel_node_count/2))]
-    relay_nodes_dest_side = [VaryingRelayNode(1, 1, None, 500, 625) for _ in range(int(rel_node_count/2))]
-    dest_nodes = [MovingNode(2, 1, None), MovingNode(2, 1, None), MovingNode(2, 1, None)]
-
-    c1 = [(src, rel, {'Bandwidth': 1e3, 'Channel': 0})
-          for rel in relay_nodes_src_side for src in src_nodes]
-
-    c2 = [(rel, dest, {'Bandwidth': 1e3, 'Channel': 0})
-          for rel in relay_nodes_dest_side for dest in dest_nodes]
-
-    c3 = [(rel1, rel2, {'Bandwidth': 1e3, 'Channel': 0})
-          for rel1 in relay_nodes_dest_side for rel2 in relay_nodes_src_side]
-
-    network.add_edges_from(c1)
-    network.add_edges_from(c2)
-    network.add_edges_from(c3)
+    network.add_edges_from(topology.grid(src_count=src_node_count))
 
     network.initialize(packet_size=500)
     network.run_for(minutes)
@@ -161,8 +147,8 @@ if __name__ == '__main__':
 
     sns.set()
     sns.set_style('whitegrid')
-    sns.set_context('poster')
-    fig, (ax1, ax2, ax3) = plt.subplots(1,3)
+    # sns.set_context('poster')
+    fig, (ax1, ax2) = plt.subplots(1,2)
     palette = itertools.cycle(sns.color_palette())
 
     # patches = []
@@ -178,21 +164,28 @@ if __name__ == '__main__':
     simple_network = None
     throughputs = []
     queue_lengths = []
-    for count in range(1, 20):
+    for count in range(4, 43):
         net = run_network(1, src_node_count=count, rel_node_count=8)
         if simple_network is None:
             simple_network = net
         throughputs.append(net.overall_throughput/1e3)
         Packet.reset()
     
-    data = pd.DataFrame(throughputs, [i for i in range(1,20)])
-    ax1.plot([i for i in range(1,20)], throughputs, marker='o')
+    data = pd.DataFrame(throughputs, [i for i in range(1,40)])
+    ax1.plot([i for i in range(1,40)], throughputs, marker='o')
     ax1.set_title('Throughput Performance: 1Kbps Generation Rate')
     ax1.set_xlabel('Number of SRC Nodes')
     ax1.set_ylabel('Kbps')
 
-    nx.draw_networkx(simple_network, ax=ax2)
-    ax2.set(title='Example Network Representation: 8Kbps Bandwidth')
+    pos_dict = {}
+    X,Y = np.mgrid[1:5:1, 1:5:1]
+    Z = list(zip(X.flatten(), Y.flatten()))
+    for n in simple_network.nodes:
+        id = n.id
+        pos_dict[n] = Z[id]
+        print(f'{n} -> {Z[id]}')
+    nx.draw_networkx(simple_network, ax=ax2, pos=pos_dict)
+    ax2.set(title='Example 4x4 Grid: 8Kbps Bandwidth')
     ax2.tick_params(axis='both', which='both', bottom=False, top=False, labelbottom=False, labelleft=False)
     ax2.text(0, 5, 'Packet Size: 500 Bytes',
             bbox={'facecolor': 'red', 'alpha': 0.5, 'pad': 10})
