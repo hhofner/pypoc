@@ -252,6 +252,12 @@ class Node:
         self.queue.extend(self.wait_queue)
         self.wait_queue.clear()
 
+    def get_queue_size(self):
+        total = 0 # in bytes
+        for packet in self.queue:
+            total += packet.size
+        return total
+
     def get_pretty_data(self):
         '''
         Create a pretty string representation of the nodes
@@ -476,3 +482,34 @@ class VaryingRelayNode(VaryingTransmitNode):
             return None
         else:
             return self.queue.pop(p_index)
+
+
+class RestrictedNode(VaryingRelayNode):
+    '''
+    Node object that has `restrictions` imposed onto it, such as max buffer size.
+    '''
+    def __init__(self, type, step_value, mobility_model, packet_size, gen_rate, max_buffer_size):
+        '''
+        :param max_buffer_size: Maximum number of Bytes (!) allowed in device buffer (queue).
+        '''
+        super().__init__(type, step_value, mobility_model, packet_size, gen_rate)
+        self.max_buffer_size = max_buffer_size
+    
+    def initalize_data(self):
+        super().initalize_data()
+        self.data.update({'dropped_packets': []})
+
+    def update_queue(self):
+        current_queue_size = self.get_queue_size()
+        while (current_queue_size < self.max_buffer_size):
+            if len(self.wait_queue) <= 0:
+                break
+            packet = self.wait_queue.pop()
+            current_queue_size += packet.size
+            self.queue.append(packet)
+        
+        if len(self.wait_queue) > 0:
+            for packet in self.wait_queue:
+                packet.dropped()
+            self.data['dropped_packets'].append(packet)
+            self.wait_queue.clear()
