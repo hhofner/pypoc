@@ -8,7 +8,7 @@ import itertools
 
 import topology
 import networkx as nx
-from node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode
+from node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode, RestrictedNode
 
 verbose = True
 verboseprint = print if verbose else lambda *a, **k: None
@@ -63,6 +63,11 @@ class PyPocNetwork(nx.Graph):
                 print(f'---->: {node}')
                 node.run(self)
             self.tick += 1
+            # for edge in self.edges:
+            #     print(edge)
+            #     input(self[edge[0]][edge[1]]['Channel'])
+
+            self.update_channel_loads()
         print(f'########### FINISH ###########')
         print(f'\tGENERATED PACKETS: {Packet.generated_count}')
         print(f'\tARRIVED PACKETS: {Packet.arrived_count}')
@@ -80,6 +85,11 @@ class PyPocNetwork(nx.Graph):
             if node.type == type_of_node:
                 count += 1
         return count
+
+    def update_channel_loads(self):
+        for edge in self.edges:
+            n1, n2 = edge
+            self[n1][n2]['Channel'] = len(n1.queue) + len(n2.queue)
 
     # Deprecation
     def can_send_through(self, key, node1, node2, bytes, received_edge=None):
@@ -126,8 +136,8 @@ class PyPocNetwork(nx.Graph):
 def run_network(minutes, src_node_count=4, rel_node_count=12):
     network = PyPocNetwork()
 
-    # network.add_edges_from(topology.grid(src_count=src_node_count))
-    network.add_edges_from(topology.sagin(src_count=src_node_count))
+    network.add_edges_from(topology.grid(src_count=src_node_count))
+    # network.add_edges_from(topology.sagin(src_count=src_node_count))
 
     network.initialize(packet_size=500)
     network.run_for(minutes)
@@ -188,22 +198,24 @@ if __name__ == '__main__':
     ax1.set_xlabel('Number of SRC Nodes')
     ax1.set_ylabel('Kbps')
 
-    # pos_dict = {}
-    # X,Y = np.mgrid[1:5:1, 1:5:1]
-    # Z = list(zip(X.flatten(), Y.flatten()))
-    # for n in simple_network.nodes:
-    #     id = n.id
-    #     pos_dict[n] = Z[id]
-    nx.draw_networkx(simple_network, ax=ax2, pos=topology.get_sagin_positional(simple_network))
-    # nx.draw_networkx(simple_network, ax=ax2)
-    ax2.set(title='Example SAGIN Topology: 8Kbps Bandwidth')
-    ax2.tick_params(axis='both', which='both', bottom=False, top=False, labelbottom=False, labelleft=False)
+    pos_dict = {}
+    X,Y = np.mgrid[1:5:1, 1:5:1]
+    Z = list(zip(X.flatten(), Y.flatten()))
+    for n in simple_network.nodes:
+        id = n.id
+        pos_dict[n] = Z[id]
+    # nx.draw_networkx(simple_network, ax=ax3, pos=topology.get_sagin_positional(simple_network))
+    nx.draw_networkx(simple_network, ax=ax3, pos=pos_dict)
+    ax3.set(title='Example Grid Topology: 8Kbps Bandwidth')
+    ax3.tick_params(axis='both', which='both', bottom=False, top=False, labelbottom=False, labelleft=False)
+    plt.table(cellText=[['8 Kbps', '1 KBytes']], rowLabels=['Global Params'], colLabels=['Bandwidth', 'Max Buffer Size'], loc='bottom')
 
     for n in complex_network.nodes:
         if n.type == 1:
-            ax3.plot(n.data['queue_size'], label=f'{n}')
-    ax3.legend(loc='upper left')
-    ax3.set_title(f'Buffer sizes for network {complex_network.get_count_of(0)} source nodes')
-    ax3.set_xlabel('Time')
-    ax3.set_ylabel('Number of packets')
+            ax2.plot(n.data['queue_size'], label=f'{n}')
+    ax2.legend(loc='upper left')
+    ax2.set_title(f'Buffer sizes for network {complex_network.get_count_of(0)} source nodes')
+    ax2.set_xlabel('Time')
+    ax2.set_ylabel('Number of packets')
+
     plt.show()
