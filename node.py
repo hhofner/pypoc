@@ -360,7 +360,6 @@ class VaryingTransmitNode(MovingNode):
         self.packet_size = packet_size
         self.gen_rate = gen_rate
 
-
     def transmit(self, network):
         # Intialize neighbors
         if len(self.neighbors) == 0:
@@ -441,11 +440,7 @@ class VaryingTransmitNode(MovingNode):
                 self.transmit_step_count = None
 
 
-class VaryingRelayNode(VaryingTransmitNode):    
-    # def relay(self, network):
-    #     if len(self.neighbors) == 0:
-    #         self.update_neighbor_counter(network)
-        
+class VaryingRelayNode(VaryingTransmitNode):
     def relay(self, network):
         ''' 
         DEPRECATION
