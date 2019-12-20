@@ -23,6 +23,7 @@ class Packet:
         Packet.dropped_count = 0
         Packet.generated_count = 0
 
+
     def __init__(self, path, tick_time, size=1):
         '''
         Increments the Packet class-wide generated_count variable and
@@ -44,8 +45,9 @@ class Packet:
 
         # The `tick` at which the packet object was instanitated
         self.born_tick = tick_time
+        self.died_tick = None
 
-    def check_and_update_path(self, arrived_node):
+    def check_and_update_path(self, arrived_node, tick):
         '''
         Check if the Node that received `this` packet aligns with
         the path, and if so, update. If path empty, it means it
@@ -64,13 +66,16 @@ class Packet:
 
         # If empty no more future
         if not self.path_nodes['future']:
-            self.arrived()
+            self.arrived(tick)
 
-    def arrived(self):
+    def arrived(self, tick):
         if not self._has_arrived:
             Packet.arrived_count += 1
-            print('Arrived!')
+            print(f'{self} arrived!')
+            self.died_tick = tick
+            self.delay = self.died_tick - self.born_tick
         self._has_arrived = True
+        # Update average delay
 
     def dropped(self):
         if not self._has_dropped:
@@ -104,7 +109,7 @@ class Node:
 
         self.dest_node_list = []
         self.wait_queue = []
-        self.queue = []
+        self.queue = deque()
 
         self.type = type
         self.time = 0
@@ -199,7 +204,7 @@ class Node:
         Update packet path and append to node queue.
         '''
         verboseprint(f'{self} received {received_packet}')
-        received_packet.check_and_update_path(self)
+        received_packet.check_and_update_path(self, network.tick)
         self.wait_queue.append(received_packet)
         if self.type == 2:
             network.update_throughput(received_packet)
@@ -373,7 +378,8 @@ class VaryingTransmitNode(MovingNode):
 
         # First loop ever
         if self.transmit_counter is None:
-            packet = self.create_packet(network, next(self.neighbor))
+            # packet = self.create_packet(network, next(self.neighbor))
+            packet = self.create_packet(network)
             packet.next_node.receive(network, packet)
             self.data['transmited_packets'].append(packet)
             
@@ -381,7 +387,8 @@ class VaryingTransmitNode(MovingNode):
 
         elif self.transmit_counter > 1:
             for _ in range(int(self.transmit_counter)):
-                packet = self.create_packet(network, next(self.neighbor))
+                # packet = self.create_packet(network, next(self.neighbor))
+                packet = self.create_packet(network)
                 packet.next_node.receive(network, packet)
                 self.data['transmited_packets'].append(packet)
                 self.transmit_counter -= 1
@@ -390,28 +397,6 @@ class VaryingTransmitNode(MovingNode):
             self.transmit_counter += self.gen_step
         else:
             self.transmit_counter += self.gen_step
-
-    def old_transmit(self, network):
-        ''' DEPRECATION '''
-        if len(self.neighbors) == 0:
-            self.update_neighbor_counter(network)
-
-        for neighbor in self.neighbor_wait_time:
-            if self.neighbor_wait_time[neighbor] == 1:
-                packet = self.create_packet(network, next_hop=neighbor)
-                self.data['transmited_packets'].append(packet)
-                
-                verboseprint(f'{self} Sending {packet} to {packet.next_node}')
-                packet.next_node.receive(network, packet)
-                wait_time = self.neighbors[neighbor] / self.step_value
-                self.neighbor_wait_time[neighbor] = wait_time
-            elif self.neighbor_wait_time[neighbor] > 1:
-                self.neighbor_wait_time[neighbor] -= 1
-            elif self.neighbor_wait_time[neighbor] == 0:
-                wait_time = self.neighbors[neighbor] / self.step_value
-                self.neighbor_wait_time[neighbor] = wait_time
-            elif self.neighbor_wait_time[neighbor] < 0:
-                raise Exception(f'Neighbor wait time can not be less than 0.')
 
     def update_neighbor_counter(self, network):
         for neighbor in nx.neighbors(network, self):
@@ -422,32 +407,14 @@ class VaryingTransmitNode(MovingNode):
         self.neighbor = (n for n in itertools.cycle(self.neighbors.keys()))
         self.gen_step = (self.gen_rate/self.packet_size) * self.step_value
 
-    def transmit_odd(self, network):
-        '''
-        DEPRECATION
-        '''
-        if self.transmit_rate < self.packet_size:
-            raise Exception(f'Packet Size can not be larger than Transmit Rate {self.packet_size} > {self.transmit_rate}')
-
-        # First block creates data to be sent. A 10 MByte data will be split into 100 packets, 
-        # if packet size is 100KByte. 
-        if self.transmit_step_count is None:
-            number_of_packet = int(self.transmit_rate / self.packet_size)
-            for _ in range(number_of_packet):
-                self.generated_queue.append(self.create_packet(network))
-            self.transmit_step_count = int(1 / self.time_conversion)  # expecting an integer value like 100, 10, etc
-        else:  # Second block sends as many packets as needed per time step.
-            to_send_count = int((self.transmit_rate * self.time_conversion) / self.packet_size)
-            for _ in range(to_send_count):
-                packet = self.generated_queue.pop()
-                self._transmit(packet, network)
-            self.transmit_step_count -= 1
-            if self.transmit_step_count == 0:
-                self.transmit_step_count = None
-
 
 class VaryingRelayNode(VaryingTransmitNode):
     def relay(self, network):
+        if len(self.queue) > 0:
+            packet = self.queue.pop()
+            packet.next_node.receive(network, packet)
+    
+    def relay_old(self, network):
         ''' 
         DEPRECATION
         '''
