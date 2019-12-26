@@ -5,6 +5,8 @@ import seaborn as sns
 import pandas as pd
 import numpy as np
 import itertools
+import pickle
+import os
 
 import topology
 import networkx as nx
@@ -71,6 +73,8 @@ class PyPocNetwork(nx.Graph):
         print(f'########### FINISH ###########')
         print(f'\tGENERATED PACKETS: {Packet.generated_count}')
         print(f'\tARRIVED PACKETS: {Packet.arrived_count}')
+        print(f'\tDROPPED PACKETS: {Packet.dropped_count}')
+        print(f'\tPACKET LOSS RATE: {Packet.dropped_count/Packet.generated_count}')
         print(f'\tOVERALL THROUGHPUT: {self.overall_throughput/1e3} KBps')
         for node in self.nodes:
             print(node.get_pretty_data())
@@ -136,8 +140,8 @@ class PyPocNetwork(nx.Graph):
 def run_network(minutes, src_node_count=4, rel_node_count=12):
     network = PyPocNetwork()
 
-    network.add_edges_from(topology.grid(src_count=src_node_count))
-    # network.add_edges_from(topology.sagin(src_count=src_node_count))
+    # network.add_edges_from(topology.grid(src_count=src_node_count))
+    network.add_edges_from(topology.sagin(src_count=src_node_count))
 
     network.initialize(packet_size=500)
     network.run_for(minutes)
@@ -166,7 +170,7 @@ if __name__ == '__main__':
     sns.set()
     sns.set_style('whitegrid')
     # sns.set_context('poster')
-    fig, (ax1, ax2, ax3) = plt.subplots(1,3)
+    fig, (ax1, ax2, ax3) = plt.subplots(3,1)
     palette = itertools.cycle(sns.color_palette())
 
     # patches = []
@@ -182,40 +186,74 @@ if __name__ == '__main__':
     simple_network = None
     complex_network = None
     throughputs = []
+    packet_loss_rates = []
+    packet_avg_delays = []
     for count in range(4, 43):
-        net = run_network(1, src_node_count=count, rel_node_count=8)
+        net = run_network(5, src_node_count=count, rel_node_count=8)
         if simple_network is None:
             simple_network = net
-        if count == 20:
+        if count == 30:
             complex_network = net
-        
+        packet_loss_rates.append((Packet.dropped_count / Packet.generated_count) * 100)
+        packet_delays = []
+        for node in net.nodes:
+            if node.type == 2:
+                for packet in node.queue:
+                    packet_delays.append(packet.delay)
+        packet_avg_delays.append(sum(packet_delays)/len(packet_delays) * net.step_value)
+
         throughputs.append(net.overall_throughput/1e3)
         Packet.reset()
     
-    data = pd.DataFrame(throughputs, [i for i in range(1,40)])
-    ax1.plot([i for i in range(1,40)], throughputs, marker='o')
-    ax1.set_title('Throughput Performance: 1Kbps Generation Rate')
-    ax1.set_xlabel('Number of SRC Nodes')
+    files_to_compare = ['thruput', 'packet_delay', 'packet_loss']
+
+    ## Axes 1 ##
+    # ax1.plot([i for i in range(1,40)], throughputs, marker='o')
+    ax1.plot(throughputs, marker='o')
+    ax1.set_title('Throughput Performance: 1Kbps Generation Rate w/ increasing source nodes')
+    # ax1.set_xlabel('Number of SRC Nodes')
     ax1.set_ylabel('Kbps')
+    # if os.path.isfile(files_to_compare[0]):
+    #     with open(files_to_compare[0], 'rb') as fp1:
+    #         prev_thruput = pickle.load(fp1)
+    #         ax1.plot(prev_thruput, color='grey', marker='*')
+    # Save current
+    with open(f'throughput_', 'wb') as tp:
+        pickle.dump(throughputs, tp)
 
-    pos_dict = {}
-    X,Y = np.mgrid[1:5:1, 1:5:1]
-    Z = list(zip(X.flatten(), Y.flatten()))
-    for n in simple_network.nodes:
-        id = n.id
-        pos_dict[n] = Z[id]
+    ## Axes 3 (!!) ##
+    # pos_dict = {}
+    # X,Y = np.mgrid[1:5:1, 1:5:1]
+    # Z = list(zip(X.flatten(), Y.flatten()))
+    # for n in simple_network.nodes:
+    #     id = n.id
+    #     pos_dict[n] = Z[id]
     # nx.draw_networkx(simple_network, ax=ax3, pos=topology.get_sagin_positional(simple_network))
-    nx.draw_networkx(simple_network, ax=ax3, pos=pos_dict)
-    ax3.set(title='Example Grid Topology: 8Kbps Bandwidth')
-    ax3.tick_params(axis='both', which='both', bottom=False, top=False, labelbottom=False, labelleft=False)
-    plt.table(cellText=[['8 Kbps', '1 KBytes']], rowLabels=['Global Params'], colLabels=['Bandwidth', 'Max Buffer Size'], loc='bottom')
+    # nx.draw_networkx(simple_network, ax=ax3, pos=pos_dict)
+    # ax3.set(title='Example Grid Topology: 8Kbps Bandwidth')
+    # ax3.tick_params(axis='both', which='both', bottom=False, top=False, labelbottom=False, labelleft=False)
+    # plt.table(cellText=[['8 Kbps', '1 KBytes']], rowLabels=['Global Params'], colLabels=['Bandwidth', 'Max Buffer Size'], loc='bottom')
+    ax3.plot(packet_loss_rates, marker='x', color='red')
+    ax3.set_title('Packet loss rate for increasing source nodes')
+    ax3.set_ylabel('Percentage')
 
-    for n in complex_network.nodes:
-        if n.type == 1:
-            ax2.plot(n.data['queue_size'], label=f'{n}')
-    ax2.legend(loc='upper left')
-    ax2.set_title(f'Buffer sizes for network {complex_network.get_count_of(0)} source nodes')
-    ax2.set_xlabel('Time')
-    ax2.set_ylabel('Number of packets')
+    ## Axes 2 ##
+    # for n in complex_network.nodes:
+    #     if n.type == 1:
+    #         ax2.plot(n.data['queue_size'], label=f'{n}')
+    # ax2.legend(loc='upper left')
+    # ax2.set_title(f'Buffer sizes for network with {complex_network.get_count_of(0)} source nodes per time')
+    # # ax2.set_xlabel('Time')
+    # ax2.set_ylabel('Number of packets')
+    ax2.plot(packet_avg_delays, color='green', marker='*')
+    ax2.set_title('Average Package Delay')
+
+    # # Plot previous
+    # with open('packet_delay', 'rb') as fp:
+    #     prev_packet_delay = pickle.load(fp)
+    #     ax2.plot(prev_packet_delay, color='grey', marker='*')
+    # Save current
+    with open('packet_delay', 'wb') as tp:
+        pickle.dump(packet_avg_delays, tp)
 
     plt.show()
