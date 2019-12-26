@@ -9,6 +9,7 @@ import pickle
 import os
 
 import topology
+import signal_tools
 import networkx as nx
 from node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode, RestrictedNode
 
@@ -70,6 +71,7 @@ class PyPocNetwork(nx.Graph):
             #     input(self[edge[0]][edge[1]]['Channel'])
 
             self.update_channel_loads()
+            self.update_channel_links()
         print(f'########### FINISH ###########')
         print(f'\tGENERATED PACKETS: {Packet.generated_count}')
         print(f'\tARRIVED PACKETS: {Packet.arrived_count}')
@@ -95,64 +97,23 @@ class PyPocNetwork(nx.Graph):
             n1, n2 = edge
             self[n1][n2]['Channel'] = len(n1.queue) + len(n2.queue)
 
-    # Deprecation
-    def can_send_through(self, key, node1, node2, bytes, received_edge=None):
-        if key != 'Channel':
-            input(f'Warning: Did you really mean {key}?')
-        
-        v = None
-        u = None
-        link_found = False
-        if not received_edge:
-            for edge in self.edges:
-                v, u = edge
-                if (v is node1 and u is node2) or (v is node2 and u is node1):
-                    link_found = True
-                    break
+    def update_channel_links(self):
+        for node in self.nodes:
+            if node.is_moving:
+                print(f'Updating links for {node}')
 
-            if link_found:
-                if self[u][v]['Channel'] + bytes < self[u][v]['Bandwidth']:
-                    self[u][v]['Channel'] += bytes
-                    verboseprint(f'Creating link reference {node1}->{node2}')
-                    return (True, self[u][v])
-                else:
-                    return (False, self[u][v])
-            elif not link_found:
-                raise Exception(f'Link not found between {node1} and {node2}')
-        
-        elif received_edge:
-            if received_edge['Channel'] + bytes < received_edge['Bandwidth']:
-                received_edge['Channel'] += bytes
-                return (True, received_edge)
-            else:
-                return (False, received_edge)
-
-    # Deprecation
-    def reset_bandwidths(self):
-        #TODO: Consider, at the end of every tick do we reset the load number
-        # on each channel? Given that, what will happen next tick? And does this
-        # make sense ?
-        for edge in self.edges:
-            v, u = edge
-            self[v][u]['Channel'] = 0
-
-
-def run_network(minutes, src_node_count=4, rel_node_count=12):
+def run_network(minutes, structure, bandwidth, src_node_count=4, packet_size=500):
     network = PyPocNetwork()
 
-    # network.add_edges_from(topology.grid(src_count=src_node_count))
-    network.add_edges_from(topology.sagin(src_count=src_node_count))
+    network.add_edges_from(structure(src_count=src_node_count, bandwidth=bandwidth))
 
-    network.initialize(packet_size=500)
+    network.initialize(packet_size=packet_size)
     network.run_for(minutes)
 
-    return network
+    network.packet_drop_rate = (Packet.dropped_count / Packet.generated_count) * 100
+    Packet.reset()
 
-def calculate_cont_throughput(network, prev_data=None):
-    '''
-    Calculate the continuous throughput of a network 
-    '''
-    pass
+    return network
 
 if __name__ == '__main__':
     # net = run_network(1)  # TODO: Currently at limited transmission
@@ -189,7 +150,7 @@ if __name__ == '__main__':
     packet_loss_rates = []
     packet_avg_delays = []
     for count in range(4, 43):
-        net = run_network(5, src_node_count=count, rel_node_count=8)
+        net = run_network(5, structure=topology.grid, src_node_count=count)
         if simple_network is None:
             simple_network = net
         if count == 30:
