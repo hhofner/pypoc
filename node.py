@@ -320,10 +320,9 @@ class Node:
 class MovingNode(Node):
     def __init__(self, type, step_value, mobility_model):
         super().__init__(type, step_value)
-        self.x = 0
-        self.y = 0
-        self.z = 0
+        self.position = (0, 0, 0)  #x, y, z
         self.mobility_model = mobility_model
+        self.is_moving = True if mobility_model else False
 
     def initalize_data(self):
         super().initalize_data()
@@ -331,7 +330,7 @@ class MovingNode(Node):
 
     def update_data(self):
         super().update_data()
-        self.data['position_list'].append([self.x, self.y, self.z])
+        self.data['position_list'].append(self.position)
 
     def run(self, network):
         if self.type == 0:
@@ -349,13 +348,11 @@ class MovingNode(Node):
 
     def move(self, network):
         try:
-            x, y, z = next(self.mobility_model(network, step_value))
+            x, y, z = self.mobility_model(network, self.step_value, self.position)
         except:
             verboseprint(f'Warning: {self} did not move.')
         else:
-            self.x = x
-            self.y = y
-            self.z = z
+            self.position = (x, y, z)
 
 
 class VaryingTransmitNode(MovingNode):
@@ -396,7 +393,8 @@ class VaryingTransmitNode(MovingNode):
             
             self.transmit_counter += self.gen_step
         else:
-            self.transmit_counter += self.gen_step
+            self.transmit_counter += max(np.random.normal(self.gen_step), self.gen_step)
+            # self.transmit_counter += self.gen_step
 
     def update_neighbor_counter(self, network):
         for neighbor in nx.neighbors(network, self):
