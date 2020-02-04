@@ -1,13 +1,14 @@
 import math
 import numpy as np
+import csv
 
 from scipy.constants import speed_of_light
 import matplotlib.pyplot as plt
 
 def FSPL(Distance, D_transmit=1, D_receive=1, Wavelength=None, Frequency=None, in_decibels=False):
     '''
-    Simple Free Space Path Loss model method. If no directivity of the antennas 
-    are specified, then the assumption is that the antennas are isotropic and 
+    Simple Free Space Path Loss model method. If no directivity of the antennas
+    are specified, then the assumption is that the antennas are isotropic and
     have no directivity.
 
     :param Distance: Distance between antennas in METERS (!!).
@@ -22,7 +23,7 @@ def FSPL(Distance, D_transmit=1, D_receive=1, Wavelength=None, Frequency=None, i
     if Frequency is None:
         Frequency = speed_of_light / Wavelength
         Frequency = Frequency / 1000  #convert to KHz
-    
+
     if Wavelength is None:
         Frequency = Frequency * 1000 # convert to Hz from KHz
         Wavelength = speed_of_light / Frequency
@@ -52,23 +53,30 @@ def dB_to_watt(dB_value):
 def watt_to_dBm(watt_value):
     return 10 * math.log10(watt_value) + 30
 
+def calculate_cap(distance):
+    watt_ratio = dB_to_watt(FSPL(Distance=distance, Frequency=2.0e6, in_decibels=True))
+    SINR = dBm_to_watt(27) / (dBm_to_watt(7) * watt_ratio)
+    return channel_capacity(Bandwidth=2.4e9, SINR=SINR)
+
+
 if __name__ == '__main__':
-    loss = FSPL(Distance=1, Frequency=15e3, in_decibels=True)
+    '''
+    loss = FSPL(Distance=1, Frequency=2.0e9, in_decibels=True)
     print(f'Loss: {loss}')
     print(f'')
-    SINR = dBm_to_watt(43)/dBm_to_watt(5)
+    SINR = dBm_to_watt(43)/dBm_to_watt(0)
     # SINR = dB_to_watt(15)
     print(SINR)
-    print(channel_capacity(Bandwidth=30e3, SINR=SINR))
+    print(channel_capacity(Bandwidth=23e6, SINR=SINR))
 
     loss_vals = []
     bandwidths = []
     distances = np.arange(1, 10, 0.2)
     for d in distances:
-        watt_ratio = dB_to_watt(FSPL(Distance=d, Frequency=15e3, in_decibels=True))
+        watt_ratio = dB_to_watt(FSPL(Distance=d, Frequency=2e9, in_decibels=True))
         loss_vals.append(watt_ratio)
-        SINR = dBm_to_watt(22) / (dBm_to_watt(5) * watt_ratio)
-        cap = channel_capacity(Bandwidth=30e3, SINR=SINR)
+        SINR = dBm_to_watt(43) / (dBm_to_watt(5) * watt_ratio)
+        cap = channel_capacity(Bandwidth=23e9, SINR=SINR)
         print(f'Capacity: {cap}\n\tRatio Loss = {watt_ratio}\n\tSINR: {SINR}')
         bandwidths.append(cap)
 
@@ -76,3 +84,15 @@ if __name__ == '__main__':
     plt.plot(distances, bandwidths, color='green', label='Channel Capacity')
     plt.title("Channel Capacity in bps by Distance")
     plt.show()
+    '''
+    # ViaSat1 connections
+    # Wavelengths: 5.0e-3--11.3e-3
+    wavelength = 11.3e-3
+    # 27e9--60e9 Hz
+    # 42164e3 meters height
+    height = 42164e3
+    print(f'Path loss : {FSPL(Distance=height, Wavelength=wavelength, in_decibels=True)} dB')
+
+    with open('channel_.csv', 'w') as csv_file:
+        fieldnames = ['channel_capacity', 'channel_capacity_db', 'path_loss', 'distance', 'frequency', 'bandwidth']
+        start_bandwidth =

@@ -8,6 +8,7 @@ import itertools
 import pickle
 import os
 
+from scipy.spatial import distance
 import topology
 import signal_tools
 import networkx as nx
@@ -23,6 +24,8 @@ class PyPocNetwork(nx.Graph):
         self.initialize_step_values()
 
         self.overall_throughput = 0
+
+        self.data = {'throughputs':[]}
 
     def initialize_step_values(self):
         highest_bandwidth = self.find_highest_bandwidth()
@@ -52,6 +55,7 @@ class PyPocNetwork(nx.Graph):
         # self.overall_throughput = packet.size / (time_to_dest * self.step_value)
 
         self.overall_throughput = (self.total_byte_count / (self.tick * self.step_value)) * 8
+        self.data['throughputs'].append(self.overall_throughput)
 
     def get(self, key, node1, node2):
         return self[node1][node2][str(key)]
@@ -66,12 +70,10 @@ class PyPocNetwork(nx.Graph):
                 print(f'---->: {node}')
                 node.run(self)
             self.tick += 1
-            # for edge in self.edges:
-            #     print(edge)
-            #     input(self[edge[0]][edge[1]]['Channel'])
 
             self.update_channel_loads()
             self.update_channel_links()
+
         print(f'########### FINISH ###########')
         print(f'\tGENERATED PACKETS: {Packet.generated_count}')
         print(f'\tARRIVED PACKETS: {Packet.arrived_count}')
@@ -80,7 +82,7 @@ class PyPocNetwork(nx.Graph):
         print(f'\tOVERALL THROUGHPUT: {self.overall_throughput/1e3} KBps')
         for node in self.nodes:
             print(node.get_pretty_data())
-        # input('yeah')
+        self.packet_drop_rate = (Packet.dropped_count / Packet.generated_count) * 100
 
     def reset(self):
         Packet.reset()
@@ -101,19 +103,23 @@ class PyPocNetwork(nx.Graph):
         for node in self.nodes:
             if node.is_moving:
                 print(f'Updating links for {node}')
+                ''' Find distance between all other nodes'''
+                for edge in self.edges(node):
+                    n1, n2 = edge
+                    dist = distance.euclidean(n1.position, n2.position)
+                    # input(f'Distance: {dist}\n\tn1 position: {n1.position}\n\tn2 position: {n2.position}')
+                    ''' Then calculate the capacity for that link'''
+                    capacity = signal_tools.calculate_cap(dist)/8 # in BYTES
+                    # input(f'Calculated Capacity: {capacity}')
+                    '''Then Change the capacity'''
+                    self[n1][n2]['Bandwidth'] = capacity
+                    self.initialize_step_values()
 
-def run_network(minutes, structure, bandwidth, src_node_count=4, packet_size=500):
-    network = PyPocNetwork()
-
-    network.add_edges_from(structure(src_count=src_node_count, bandwidth=bandwidth))
-
-    network.initialize(packet_size=packet_size)
-    network.run_for(minutes)
-
-    network.packet_drop_rate = (Packet.dropped_count / Packet.generated_count) * 100
-    Packet.reset()
-
-    return network
+    def run_network(minutes, structure, bandwidth, src_node_count, relay_node_count, 
+                    dest_node_count, packet_size):
+        self.add_edges_from(structure(src_node_count, relay_node_count, dest_node_count))
+        self.initialize(packet_size)
+        self.run_for(minutes)
 
 if __name__ == '__main__':
     # net = run_network(1)  # TODO: Currently at limited transmission
