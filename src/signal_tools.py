@@ -53,7 +53,7 @@ def dB_to_watt(dB_value):
 def watt_to_dBm(watt_value):
     return 10 * math.log10(watt_value) + 30
 
-def calculate_cap(distance):
+def calculate_capacity(distance):
     watt_ratio = dB_to_watt(FSPL(Distance=distance, Frequency=2.0e6, in_decibels=True))
     SINR = dBm_to_watt(27) / (dBm_to_watt(7) * watt_ratio)
     return channel_capacity(Bandwidth=2.4e9, SINR=SINR)
