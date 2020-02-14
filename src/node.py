@@ -124,40 +124,6 @@ class Node:
     def transmit(self, network):
         pass
 
-    def transmit_old(self, network):
-        '''
-        Create Packet instance and send it to the next
-        Node destination based on the path.
-
-        Node (self) will ask the passed in network object if it can send
-        the generated packet. At the same time, the Node (self) will try
-        and save an `edge` reference for the next node, so for when it is
-        used again it doesn't require the network object to iterate over all
-        edges in the network.
-
-        :param network: Networkx Graph instance that has all info on network.
-        '''
-        packet = self.create_packet(network)
-
-        self._transmit(packet, network)
-
-    def _transmit(self, packet, network):
-        # `can_send_through()` returns Tuple, (Bool, edge)
-        can_send, edge = network.can_send_through('Channel', 
-                                                  self,
-                                                  packet.next_node,
-                                                  packet.size,
-                                                  self.edges[packet.next_node])
-        if can_send:
-            self.data['transmited_packets'].append(packet)
-            self.edges[packet.next_node] = edge
-            verboseprint(f'{self} Sending {packet} to {packet.next_node}')
-            packet.next_node.receive(packet)
-        else:
-            self.edges[packet.next_node] = edge
-            print(f'Can not sent data for Node {self.id}->Node {packet.next_node}')
-            # self.queue.append
-
     def transmit_limited(self, network, count):
         '''
         Transmit a limited number of times, based on the passed
@@ -411,42 +377,6 @@ class VaryingRelayNode(VaryingTransmitNode):
         if len(self.queue) > 0:
             packet = self.queue.pop()
             packet.next_node.receive(network, packet)
-    
-    def relay_old(self, network):
-        ''' 
-        DEPRECATION
-        '''
-        if len(self.neighbors) == 0:
-            self.update_neighbor_counter(network)
-
-        for neighbor in self.neighbor_wait_time:
-            if self.neighbor_wait_time[neighbor] >= 1:
-                packet = self.get_packet_for(neighbor)
-                if not packet is None:
-                    verboseprint(f'Relaying {packet} to {packet.next_node}')
-                    packet.next_node.receive(network, packet)
-                wait_time = self.neighbors[neighbor] / self.step_value
-                self.neighbor_wait_time[neighbor] -= 1
-            elif self.neighbor_wait_time[neighbor] >= 0:
-                wait_time = self.neighbors[neighbor] / self.step_value
-                self.neighbor_wait_time[neighbor] += wait_time
-            elif self.neighbor_wait_time[neighbor] < 0:
-                raise Exception(f'Neighbor wait time can not be less than 0.')
-
-    def get_packet_for(self, neighbor):
-        '''
-        Find & return a packet from queue that goes to the next neighbor.
-        '''
-        p_index = None
-        for p in self.queue:
-            if p.next_node == neighbor:
-                p_index = self.queue.index(p)
-                break
-        
-        if p_index is None:
-            return None
-        else:
-            return self.queue.pop(p_index)
 
 
 class RestrictedNode(VaryingRelayNode):
