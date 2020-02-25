@@ -1,5 +1,6 @@
 '''
-Main entry script for PyPoc.
+Main entry script for PyPoc. Reads the config and 
+creates & runs a Network.
 '''
 
 import argparse
@@ -9,4 +10,4 @@ from configparser import ConfigParser
 parser = ConfigParser()
 parser.read('setup.ini')
 
-print(parser.get())
+print(parser.get('nodes'))
