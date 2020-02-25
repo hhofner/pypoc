@@ -17,12 +17,22 @@ from node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode
 verbose = True
 verboseprint = print if verbose else lambda *a, **k: None
 
+class Infodata:
+    def __init__(data, information):
+        self._data = data
+        self._information = information
 
+class NetworkData:
+    def __init__():
+        self.throughputs = Infodata([], 
+        'List of whole network throughput values per time.')
+        self.overall_throughput = Infodata(0, 
+        'The overall throughput of the network')
+        
 class PyPocNetwork(nx.Graph):
     def initialize(self, packet_size):
         self.packet_size = packet_size
         self.initialize_step_values()
-
         self.overall_throughput = 0
 
         self.data = {'throughputs':[]}
@@ -50,9 +60,6 @@ class PyPocNetwork(nx.Graph):
             self.total_byte_count += packet.size
         except:
             self.total_byte_count = packet.size
-        
-        # time_to_dest = self.tick - packet.born_tick
-        # self.overall_throughput = packet.size / (time_to_dest * self.step_value)
 
         self.overall_throughput = (self.total_byte_count / (self.tick * self.step_value)) * 8
         self.data['throughputs'].append(self.overall_throughput)
@@ -80,8 +87,6 @@ class PyPocNetwork(nx.Graph):
         print(f'\tDROPPED PACKETS: {Packet.dropped_count}')
         print(f'\tPACKET LOSS RATE: {Packet.dropped_count/Packet.generated_count}')
         print(f'\tOVERALL THROUGHPUT: {self.overall_throughput/1e3} KBps')
-        for node in self.nodes:
-            print(node.get_pretty_data())
         self.packet_drop_rate = (Packet.dropped_count / Packet.generated_count) * 100
 
     def reset(self):

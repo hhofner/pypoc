@@ -36,17 +36,18 @@ def calculate_base_station_locations(avg_value, x, y):
         # Keep at least 500m distance between BS's
         distances_ok = False
         while not distances_ok:
-            x, y = 3 * np.random.rand(1, 2)[0]
+            x1 = x * np.random.rand(1)
+            y1 = y * np.random.rand(1)
             if not x_data:
                 break
             for x2, y2 in zip(x_data, y_data): 
-                if distance((x2, y2), (x, y)) < 0.5:
+                if distance((x2, y2), (x1, y1)) < 0.5:
                     distances_ok = False
                     break
                 distances_ok = True
                 
-        x_data.append(x)
-        y_data.append(y)
+        x_data.append(x1)
+        y_data.append(y1)
     
     BaseStationData = TopData()
     BaseStationData.data = (x_data, y_data)
@@ -55,8 +56,13 @@ def calculate_base_station_locations(avg_value, x, y):
 
     return BaseStationData
 
-def calculate_uav_locations_by_bs_locations():
-    pass
+def calculate_uav_locations(uav_count, bs_coordinates, x, y):
+    existing_bs_x = []; existing_bs_y = []
+    uav_coord = [[], [], []]  # x, y, z
+    for _ in range(uav_count):
+        pass
+
+
 
 if __name__ == "__main__":
     sns.set()

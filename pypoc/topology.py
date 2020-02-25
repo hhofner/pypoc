@@ -83,6 +83,11 @@ def linear(nodes=2, bandwidth=1e3, src_count=None):
         pass
 
 ###################################################################################################
+# Positional Topologies #
+def normal_distributed(bs_count):
+    pass
+
+###################################################################################################
 # Drawing Helper Methods #
 def get_sagin_positional(network):
     pos_dict = {}
