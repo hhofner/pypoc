@@ -54,6 +54,9 @@ def watt_to_dBm(watt_value):
     return 10 * math.log10(watt_value) + 30
 
 def calculate_capacity(distance):
+    '''
+    
+    '''
     watt_ratio = dB_to_watt(FSPL(Distance=distance, Frequency=2.0e6, in_decibels=True))
     SINR = dBm_to_watt(27) / (dBm_to_watt(7) * watt_ratio)
     return channel_capacity(Bandwidth=2.4e9, SINR=SINR)
@@ -93,6 +96,6 @@ if __name__ == '__main__':
     height = 42164e3
     print(f'Path loss : {FSPL(Distance=height, Wavelength=wavelength, in_decibels=True)} dB')
 
-    with open('channel_.csv', 'w') as csv_file:
-        fieldnames = ['channel_capacity', 'channel_capacity_db', 'path_loss', 'distance', 'frequency', 'bandwidth']
-        start_bandwidth =
+    # with open('channel_.csv', 'w') as csv_file:
+    #     fieldnames = ['channel_capacity', 'channel_capacity_db', 'path_loss', 'distance', 'frequency', 'bandwidth']
+    #     start_bandwidth =

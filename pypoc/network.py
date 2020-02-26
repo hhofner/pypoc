@@ -8,6 +8,7 @@ import itertools
 import pickle
 import os
 
+from copy import copy
 from scipy.spatial import distance
 import topology
 import signal_tools
@@ -22,27 +23,36 @@ class Infodata:
         self._data = data
         self._information = information
 
+
 class NetworkData:
     def __init__():
         self.throughputs = Infodata([], 
-        'List of whole network throughput values per time.')
+            'List of whole network throughput values per time.')
         self.overall_throughput = Infodata(0, 
-        'The overall throughput of the network')
-        
+            'The overall throughput of the network')
+        self.step_value = Infodata(0,
+            'The time it takes for one packet to be sent, in seconds.')
+
+
 class PyPocNetwork(nx.Graph):
-    def initialize(self, packet_size):
+    def initialize(self, packet_size, **kwargs):
         self.packet_size = packet_size
         self.initialize_step_values()
         self.overall_throughput = 0
 
         self.data = {'throughputs':[]}
+        self.parameters = kwargs
 
     def initialize_step_values(self):
+        '''
+        This method defines the step value for the 
+        network based on bandwidth and packet size.
+        '''
         highest_bandwidth = self.find_highest_bandwidth()
         self.step_value = self.packet_size/highest_bandwidth
-
         for node in self.nodes:
             node.step_value = self.step_value
+        input(f'step value: {self.step_value}')
 
     def find_highest_bandwidth(self):
         highest = None
@@ -55,14 +65,16 @@ class PyPocNetwork(nx.Graph):
         
         return highest
 
-    def update_throughput(self, packet):
+    def update_byte_count(self, packet):
         try:
             self.total_byte_count += packet.size
         except:
             self.total_byte_count = packet.size
-
-        self.overall_throughput = (self.total_byte_count / (self.tick * self.step_value)) * 8
-        self.data['throughputs'].append(self.overall_throughput)
+    
+    def update_throughput(self)
+        try:
+            self.overall_throughput = (self.total_byte_count / (self.tick * self.step_value))
+            self.data['throughputs'].append(self.overall_throughput)
 
     def get(self, key, node1, node2):
         return self[node1][node2][str(key)]
@@ -74,7 +86,7 @@ class PyPocNetwork(nx.Graph):
         while self.tick < ticks:
             print(f'\n~~~~ TIME {self.tick} ~~~~\n')
             for node in self.nodes:
-                print(f'---->: {node}')
+                print(f'---->: {node} :<----')
                 node.run(self)
             self.tick += 1
 
@@ -109,21 +121,29 @@ class PyPocNetwork(nx.Graph):
             if node.is_moving:
                 print(f'Updating links for {node}')
                 ''' Find distance between all other nodes'''
+                to_remove_edges = []
                 for edge in self.edges(node):
                     n1, n2 = edge
                     dist = distance.euclidean(n1.position, n2.position)
                     # input(f'Distance: {dist}\n\tn1 position: {n1.position}\n\tn2 position: {n2.position}')
                     ''' Then calculate the capacity for that link'''
-                    capacity = signal_tools.calculate_cap(dist)/8 # in BYTES
+                    capacity = signal_tools.calculate_capacity(dist)/8 # in BYTES
                     # input(f'Calculated Capacity: {capacity}')
                     '''Then Change the capacity'''
-                    self[n1][n2]['Bandwidth'] = capacity
-                    self.initialize_step_values()
+                    # self[n1][n2]['Bandwidth'] = capacity
+                    # self.initialize_step_values()
+                    if capacity < self.parameters['threshold_value']:
+                        to_remove_edges.append((n1, n2))
+        
+                for node_pair in to_remove_edges:
+                    u, v = node_pair
+                    self.remove_edge(u, v)
 
-    def run_network(minutes, structure, bandwidth, src_node_count, relay_node_count, 
-                    dest_node_count, packet_size):
-        self.add_edges_from(structure(src_node_count, relay_node_count, dest_node_count))
-        self.initialize(packet_size)
+    def run_network(self, minutes, structure, bandwidth, src_node_count, 
+                    relay_node_count, relay_node_count2, dest_node_count, 
+                    packet_size, **kwargs):
+        self.add_edges_from(structure(src_node_count, relay_node_count, relay_node_count2, dest_node_count, bandwidth))
+        self.initialize(packet_size, **kwargs)
         self.run_for(minutes)
 
 if __name__ == '__main__':

@@ -1,6 +1,7 @@
 import itertools
 import random
 from node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode, RestrictedNode
+from mobility_models import ellipse_movement, straight_line
 
 # TODO: change to allow any connection between number of relays
 def grid(src_count=4, relay_count=8, dest_count=4, bandwidth=1e3):
@@ -70,16 +71,21 @@ def sagin(src_count=4, uav_count=4, sat_count=2, dest_count=4, bandwidth=1e3):
 
     return c1 + c2 + c3 + c4 + c5 + c6
 
-def linear(nodes=2, bandwidth=1e3, src_count=None):
+def linear(src_count= 2, uav_count=0, sat_count=0, dest_node_count=0, bandwidth=1e3):
     '''
     Create a "linear" topology for testing purposes. Default is
     source and destination node.
     '''
-    if nodes == 2:
-        src_node = VaryingTransmitNode(0, 1, None, 500, 500)
+    if src_count == 2:
+        src_node = VaryingTransmitNode(type=0, 
+                                       step_value=1, 
+                                       mobility_model=straight_line, 
+                                       packet_size=500, 
+                                       gen_rate=1000)
+        src_node.position = (-1.0, 0, 0)
         dest_node = MovingNode(2, 1, None)
         return [(src_node, dest_node, {'Bandwidth': bandwidth, 'Channel': 0})]
-    if nodes == 3:
+    if src_count == 3:
         pass
 
 ###################################################################################################

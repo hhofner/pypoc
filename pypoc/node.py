@@ -173,17 +173,15 @@ class Node:
         received_packet.check_and_update_path(self, network.tick)
         self.wait_queue.append(received_packet)
         if self.type == 2:
-            network.update_throughput(received_packet)
+            network.update_byte_count(received_packet)
         self.data['received_packets'].append(received_packet)
 
     def run(self, network):
         '''
         '''
         if self.type == 0:
-            print(f'{self} transmitting.')
             self.transmit(network)
         elif self.type == 1:
-            print(f'{self} relaying.')
             self.relay(network)
 
         self.update_queue()
@@ -254,10 +252,19 @@ class Node:
             self.update_dest_node_list(network)
         dest = random.choice(self.dest_node_list)
         if next_hop is None:
-            path = nx.shortest_path(network, self, dest, weight='Channel')
+            try:
+                path = nx.shortest_path(network, self, dest, weight='Channel')
+            except nx.exception.NetworkXNoPath:
+                print(f'No path {self} -> {dest} ')
+                return
         else:
-            path = nx.shortest_path(network, next_hop, dest, weight='Channel')
-            path = [self] + path
+            # TODO: This is dangerous because next_hop might not exist.
+            try:
+                path = nx.shortest_path(network, next_hop, dest, weight='Channel')
+                path = [self] + path
+            except networkx.exception.NetworkXNoPath:
+                print(f'No path {self} -> {dest} ')
+                return
 
         # TODO: Implement the functionality of nodes that can't reach
         # the destination from next_hop -- for now assume they can
@@ -300,10 +307,8 @@ class MovingNode(Node):
 
     def run(self, network):
         if self.type == 0:
-            print(f'{self} transmitting.')
             self.transmit(network)
         elif self.type == 1:
-            print(f'{self} relaying.')
             self.relay(network)
 
         self.move(network)
@@ -313,12 +318,13 @@ class MovingNode(Node):
         self.time += 1
 
     def move(self, network):
-        try:
-            x, y, z = self.mobility_model(network, self.step_value, self.position)
-        except:
-            verboseprint(f'Warning: {self} did not move.')
-        else:
-            self.position = (x, y, z)
+        if self.is_moving:
+            try:
+                x, y, z = self.mobility_model(network, self.step_value, self.position)
+            except:
+                raise
+            else:
+                self.position = (x, y, z)
 
 
 class VaryingTransmitNode(MovingNode):
@@ -335,6 +341,9 @@ class VaryingTransmitNode(MovingNode):
         self.gen_rate = gen_rate
 
     def transmit(self, network):
+        if (self.packet_size/self.gen_rate) < self.step_value:
+            raise Exception(f'Generation Rate is too large: {self.gen_rate}')
+        
         # Intialize neighbors
         if len(self.neighbors) == 0:
             self.update_neighbor_counter(network)
@@ -343,19 +352,23 @@ class VaryingTransmitNode(MovingNode):
         if self.transmit_counter is None:
             # packet = self.create_packet(network, next(self.neighbor))
             packet = self.create_packet(network)
+            if packet is None:
+                return
             packet.next_node.receive(network, packet)
             self.data['transmited_packets'].append(packet)
             
             self.transmit_counter = self.gen_step
 
-        elif self.transmit_counter > 1:
+        elif self.transmit_counter >= 1:
             for _ in range(int(self.transmit_counter)):
                 # packet = self.create_packet(network, next(self.neighbor))
                 packet = self.create_packet(network)
+                if packet is None:
+                    return
                 packet.next_node.receive(network, packet)
                 self.data['transmited_packets'].append(packet)
                 self.transmit_counter -= 1
-                print('Transmitted')
+                print(f'{self} transmitted a packet.')
             
             self.transmit_counter += self.gen_step
         else:
