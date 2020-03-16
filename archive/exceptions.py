@@ -1,2 +1,0 @@
-class RunMethodEmpty(ValueError):
-    pass
