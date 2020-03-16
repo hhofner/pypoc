@@ -1,7 +1,9 @@
 import itertools
 import random
-from node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode, RestrictedNode
-from mobility_models import ellipse_movement, straight_line
+import argparse
+import numpy as np
+from pypoc.node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode, RestrictedNode
+from pypoc.mobility import ellipse_movement, straight_line
 
 # TODO: change to allow any connection between number of relays
 def grid(src_count=4, relay_count=8, dest_count=4, bandwidth=1e3):
@@ -39,6 +41,8 @@ def grid(src_count=4, relay_count=8, dest_count=4, bandwidth=1e3):
     return c1 + c2 + c3
 
 def sagin(src_count=4, uav_count=4, sat_count=2, dest_count=4, bandwidth=1e3):
+
+
     src_nodes = [VaryingTransmitNode(0, 1, None, 500, 500) for _ in range(src_count)]
     uav_src_side = [RestrictedNode(1, 1, None, 500, 625, 3e3) for _ in range(uav_count)]
     sat_nodes = [RestrictedNode(1, 1, None, 500, 625, 6e3) for _ in range(sat_count)]
@@ -93,6 +97,41 @@ def linear(src_count= 2, uav_count=0, sat_count=0, dest_node_count=0, bandwidth=
 def normal_distributed(bs_count):
     pass
 
+def sagin0115topology():
+    '''
+    Return list of edge tuples for topology.
+    '''
+    # Global Parameters
+    width = 10
+    height = 10
+    packet_size = 500  #Bytes == 4Kbits
+
+    # Satellite Parameters
+    satellite_cluster_count = 2
+    satellite_cluster_size = 1
+    sat_buffer_size = 30000  # 30MB
+    sat_z = 2000e3 # 2000 Kilometers
+
+    satellite_nodes = []
+    # Build Satellites Nodes
+    for cluster in range(satellite_cluster_count):
+        for count in range(satellite_cluster_size):
+            node = RestrictedNode(type=1, step_value=1,
+                                    mobility_model=None,
+                                    packet_size=packet_size,
+                                    gen_rate=0,
+                                    max_buffer_size=sat_buffer_size)
+            x = np.random.random(1)[0] * width/2
+            y = np.random.random(1)[0] * height/2
+            z = sat_z
+            node.position = (x, y, z)
+            satellite_nodes.append(node)
+        
+    # UAV-BS Parameters
+    
+
+        
+
 ###################################################################################################
 # Drawing Helper Methods #
 def get_sagin_positional(network):
@@ -103,3 +142,7 @@ def get_sagin_positional(network):
         pos_dict[node] = whatever[node.id]
     
     return pos_dict
+
+if __name__ == '__main__':
+    print(f'>> Plotting top-down topology map:')
+    

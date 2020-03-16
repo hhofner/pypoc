@@ -1,3 +1,5 @@
+''' Defines mobility models (generator methods)
+'''
 import numpy as np
 import math
 
@@ -12,3 +14,6 @@ def ellipse_movement(network, time_step, position):
 def straight_line(network, time_step, position):
     old_x, old_y, old_z = position
     return (old_x + 0.1, old_y, old_z)
+
+def hourly_on_off(network, time_step, position):
+    pass

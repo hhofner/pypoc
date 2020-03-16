@@ -1,6 +1,13 @@
+'''
+Defines the core Network class.
+'''
+
+__author__ = 'Hans Hofner'
+
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import itertools
+import networkx as nx
 import seaborn as sns
 import pandas as pd
 import numpy as np
@@ -10,10 +17,10 @@ import os
 
 from copy import copy
 from scipy.spatial import distance
-import topology
-import signal_tools
-import networkx as nx
-from node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode, RestrictedNode
+
+import pypoc.topology
+import pypoc.signal_tools
+from pypoc.node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode, RestrictedNode
 
 verbose = True
 verboseprint = print if verbose else lambda *a, **k: None
@@ -71,10 +78,12 @@ class PyPocNetwork(nx.Graph):
         except:
             self.total_byte_count = packet.size
     
-    def update_throughput(self)
+    def update_throughput(self):
         try:
             self.overall_throughput = (self.total_byte_count / (self.tick * self.step_value))
             self.data['throughputs'].append(self.overall_throughput)
+        except:
+            raise
 
     def get(self, key, node1, node2):
         return self[node1][node2][str(key)]
@@ -139,18 +148,20 @@ class PyPocNetwork(nx.Graph):
                     u, v = node_pair
                     self.remove_edge(u, v)
 
-    def run_network(self, minutes, structure, bandwidth, src_node_count, 
-                    relay_node_count, relay_node_count2, dest_node_count, 
-                    packet_size, **kwargs):
-        self.add_edges_from(structure(src_node_count, relay_node_count, relay_node_count2, dest_node_count, bandwidth))
+    def run_network(self, minutes, edge_structure, packet_size, **kwargs):
+        '''
+        :param minutes: Number of minutes to run the simulation for.
+        :param edge_structure: list of edge tuples with bandwidth definition.
+        :param packet_size: packet sizes to be sent.
+        :param **kwargs: any other key-word arguments.
+        :return: None
+
+        '''
+        self.add_edges_from(edge_structure)
         self.initialize(packet_size, **kwargs)
         self.run_for(minutes)
 
 if __name__ == '__main__':
-    # net = run_network(1)  # TODO: Currently at limited transmission
-
-    # print(f'\tGenerated Packets: {Packet.generated_count}')
-    # print(f'\ttArrived Packets: {Packet.arrived_count}')
 
     # print(f'\t{"#"*10}Individual Node Data{"#"*10}')
     # for n in net.nodes:

@@ -1,3 +1,9 @@
+'''
+Defines the core Node and Packet classes.
+'''
+
+__author__ = 'Hans Hofner'
+
 from collections import deque, defaultdict
 from abc import ABC, abstractmethod
 import matplotlib.pyplot as plt
@@ -103,6 +109,7 @@ class Node:
 
         :param type: Integer corresponding to predefined integer types,
             i.e. Source node, Relay node or Destination node.
+        :param step_value: 
         '''
         self.id = Node.count
         Node.count += 1
@@ -292,8 +299,16 @@ class Node:
 
 class MovingNode(Node):
     def __init__(self, type, step_value, mobility_model):
+        '''
+        Defines methods and info on moving nodes. Specifically, it uses
+        a inputted mobility model generator function to calculate the 
+        nodes' position in meters.
+
+        :param mobility_model: generator that calculates the next (x, y, z) 
+                                position of node.
+        '''
         super().__init__(type, step_value)
-        self.position = (0, 0, 0)  #x, y, z
+        self.position = (0, 0, 0)  #x, y, z  METERS
         self.mobility_model = mobility_model
         self.is_moving = True if mobility_model else False
 
