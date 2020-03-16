@@ -1,5 +1,5 @@
 # PYPOC
-A Python Discrete Event Simulator for Heterogeneous Wireless Networks. 
+A Python Discrete Event Simulator for Heterogeneous Wireless Networks.
 
 To run this simulation, go into the pypoc directory and run the (same name) directory of pypoc:
 
@@ -40,5 +40,13 @@ The configuration file `setup.ini` defines all the specific parameters for the n
 
 #### [data]
 
-## Developer Notes
-Parameters will be passed down by **kwargs.
+## Code Documentation
+
+The core of the code resides in the PYPOC directory. These files should rarely change once the code base
+is stable. Someone who wants to run a simulation will do so only by editing the configuration file named "setup.ini"
+and the corresponding simulation results will be put into a directory.
+
+Unfortunately, as of March 16th, the way of running individual simulations is by creating special simulation scripts
+with some random number ID that identifies the simulation.
+
+
