@@ -1,136 +1,99 @@
+'''
+This module provides a class and methods to build the users desired topology.
+The class is populated by reading the configuration file `setup.toml`.
+'''
+
 import itertools
 import random
 import argparse
 import numpy as np
-from pypoc.node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode, RestrictedNode
-from pypoc.mobility import ellipse_movement, straight_line
+import toml
 
-# TODO: change to allow any connection between number of relays
-def grid(src_count=4, relay_count=8, dest_count=4, bandwidth=1e3):
-    src_nodes = [VaryingTransmitNode(0, 1, None, 500, 125) for _ in range(src_count)]
-    relay_nodes_src_side = [RestrictedNode(1, 1, None, 500, 625, 20e3) for _ in range(int(relay_count/2))]
-    relay_nodes_dest_side = [RestrictedNode(1, 1, None, 500, 625, 20e3) for _ in range(int(relay_count/2))]
-    dest_nodes = [MovingNode(2, 1, None) for _ in range(dest_count)]
+from node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode, RestrictedNode
+from mobility import ellipse_movement, straight_line
 
-    c1 = []; c2 = []
-    src_relay = itertools.cycle(relay_nodes_src_side)
-    for src in src_nodes:
-        c1.append((src, next(src_relay),
-                {'Bandwidth': bandwidth, 'Channel': 0}))
-    for i in range(4):
-        c2.append((relay_nodes_dest_side[i], dest_nodes[i], 
-            {'Bandwidth': bandwidth, 'Channel': 0}))
+configuration = toml.load('../config.toml')
 
-    # c3 = [(rel1, rel2, {'Bandwidth': 1e3, 'Channel': 0})
-    #     for rel1 in relay_nodes_dest_side for rel2 in relay_nodes_src_side]
-    
-    # direct src_side to dest_side AND between src connections
-    c3 = []
-    for i in range(len(relay_nodes_src_side)):
-        rel1 = relay_nodes_src_side[i]
-        rel2 = relay_nodes_dest_side[i]
-        c3.append((rel1, rel2, {'Bandwidth': bandwidth, 'Channel': 0}))
+class Topology:
+    def __init__(self, configuration):
+        print('Initializing topology configuration...')
+        packet_size = configuration['global']['packet-size']
+        
+        self.node_dict = {}  # Dict of TYPE of Nodes (src-node, etc)
+        print('Creating node objects...')
+        for node in configuration['nodes'].keys():
+            self.node_dict[node] = []  # Make an entry for different type of node
+            node_type = configuration['nodes'][node]['type']
+            count = configuration['nodes'][node]['count']
+            position = configuration['nodes'][node]['position']
+            movement = configuration['nodes'][node]['movement']
+            parameters = configuration['nodes'][node]['params']
 
-    # Connections between all src nodes
-    c3.extend([(rel1, rel2, {'Bandwidth': bandwidth, 'Channel': 0})
-                for rel1 in relay_nodes_src_side for rel2 in relay_nodes_src_side])
+            # Create nodes
+            for _ in range(count):
+                new_node = RestrictedNode(node_type=node_type,
+                                          step_value=0,
+                                          mobility_model=movement,
+                                          packet_size=packet_size,
+                                          gen_rate=parameters['generation-rate'],
+                                          max_buffer_size=parameters['buffer-size'])
+                self.node_dict[node].append(new_node)
 
-    c3.extend([(rel1, rel2, {'Bandwidth': bandwidth, 'Channel': 0})
-                for rel1 in relay_nodes_dest_side for rel2 in relay_nodes_dest_side])
-
-    return c1 + c2 + c3
-
-def sagin(src_count=4, uav_count=4, sat_count=2, dest_count=4, bandwidth=1e3):
+        # Build connections
+        if configuration['global']['link-foundation'] == 'distance':
+            self.create_distance_links(configuration)
 
 
-    src_nodes = [VaryingTransmitNode(0, 1, None, 500, 500) for _ in range(src_count)]
-    uav_src_side = [RestrictedNode(1, 1, None, 500, 625, 3e3) for _ in range(uav_count)]
-    sat_nodes = [RestrictedNode(1, 1, None, 500, 625, 6e3) for _ in range(sat_count)]
-    uav_dest_side = [RestrictedNode(1, 1, None, 500, 625, 3e3) for _ in range(uav_count)]
-    dest_nodes = [MovingNode(2, 1, None) for _ in range(dest_count)]
+    def create_distance_links(self, configuration):
+        '''
+        Create a list of tuples that represent a link between two nodes.
+        The parameters of the links are represented as a dictionary. Sets the 
+        `self.topology` variable. 
 
-    # Src to UAV
-    c1 = [(src, rel, {'Bandwidth': bandwidth, 'Channel': 0})
-          for rel in uav_src_side for src in src_nodes]
+        :param configuration: dict, topology configuration
+        :return: None
+        '''
+        # TODO: Specifying uplink + downlink bandwidth --> for now just use downlink
+        if len(self.node_dict) == 0:
+            raise Exception('No available nodes to make links.')
 
-    # UAV to Dest
-    c2 = [(rel, dest, {'Bandwidth': bandwidth, 'Channel': 0})
-          for rel in uav_dest_side for dest in dest_nodes]
+        def is_distance_ok(node, node2):
+            if distance(node, node2) < 1:
+                return True
+            else:
+                return False
 
-    # UAV to UAV
-    c3 = [(rel1, rel2, {'Bandwidth': bandwidth, 'Channel': 0})
-        for rel1 in uav_src_side for rel2 in uav_dest_side]
+        print('Creating links between nodes...')
+        edge_list = []
 
-    # Src-UAV to Sat
-    c4 = [(rel1, rel2, {'Bandwidth': bandwidth, 'Channel': 0})
-        for rel1 in uav_src_side for rel2 in sat_nodes[0:1]]
+        connections_for = {}
+        uplink_bandwidth_for = {}
+        downlink_bandwidth_for = {}
+        # Fetch info on what nodes connect to what nodes
+        for node in configuration['nodes'].keys():
+            connections_for[node] = configuration['nodes'][node]['connected-to']
+            downlink_bandwidth_for[node] = configuration['nodes'][node]['params']['downlink-bandwidth']
+            uplink_bandwidth_for[node] = configuration['nodes'][node]['params']['uplink-bandwidth']
 
-    # Dest-UAV to SAT
-    c5 = [(rel1, rel2, {'Bandwidth': bandwidth, 'Channel': 0})
-        for rel1 in uav_dest_side for rel2 in sat_nodes[1:]]
+        # Start making connections
+        for node_key in self.node_dict:
+            viable_connections = connections_for[node_key]  # Get list of nodes it can connect to
+            for node in self.node_dict[node_key]:
+                for vn in viable_connections:
+                    for node2 in self.node_dict[vn]:
+                        if is_distance_ok(node, node2):
+                            new_connection = (node, node2, {'Bandwidth': downlink_bandwidth_for[node_key]})
+                            edge_list.append(new_connection)
 
-    # sat to sat
-    c6 = [(rel1, rel2, {'Bandwidth': 2 * bandwidth, 'Channel': 0})
-        for rel1 in sat_nodes for rel2 in sat_nodes]
+        self.topology = edge_list
 
-    return c1 + c2 + c3 + c4 + c5 + c6
 
-def linear(src_count= 2, uav_count=0, sat_count=0, dest_node_count=0, bandwidth=1e3):
-    '''
-    Create a "linear" topology for testing purposes. Default is
-    source and destination node.
-    '''
-    if src_count == 2:
-        src_node = VaryingTransmitNode(type=0, 
-                                       step_value=1, 
-                                       mobility_model=straight_line, 
-                                       packet_size=500, 
-                                       gen_rate=1000)
-        src_node.position = (-1.0, 0, 0)
-        dest_node = MovingNode(2, 1, None)
-        return [(src_node, dest_node, {'Bandwidth': bandwidth, 'Channel': 0})]
-    if src_count == 3:
-        pass
+def distance(node1, node2):
+    a = np.array(node1.position)
+    b = np.array(node2.position)
+    return np.linalg.norm(a-b)
 
 ###################################################################################################
-# Positional Topologies #
-def normal_distributed(bs_count):
-    pass
-
-def sagin0115topology():
-    '''
-    Return list of edge tuples for topology.
-    '''
-    # Global Parameters
-    width = 10
-    height = 10
-    packet_size = 500  #Bytes == 4Kbits
-
-    # Satellite Parameters
-    satellite_cluster_count = 2
-    satellite_cluster_size = 1
-    sat_buffer_size = 30000  # 30MB
-    sat_z = 2000e3 # 2000 Kilometers
-
-    satellite_nodes = []
-    # Build Satellites Nodes
-    for cluster in range(satellite_cluster_count):
-        for count in range(satellite_cluster_size):
-            node = RestrictedNode(type=1, step_value=1,
-                                    mobility_model=None,
-                                    packet_size=packet_size,
-                                    gen_rate=0,
-                                    max_buffer_size=sat_buffer_size)
-            x = np.random.random(1)[0] * width/2
-            y = np.random.random(1)[0] * height/2
-            z = sat_z
-            node.position = (x, y, z)
-            satellite_nodes.append(node)
-        
-    # UAV-BS Parameters
-    
-
-        
 
 ###################################################################################################
 # Drawing Helper Methods #
@@ -140,9 +103,10 @@ def get_sagin_positional(network):
     for node in network:
         print(node.id)
         pos_dict[node] = whatever[node.id]
-    
+
     return pos_dict
 
 if __name__ == '__main__':
-    print(f'>> Plotting top-down topology map:')
-    
+    print('testing topology')
+    new = Topology(configuration)
+    print(new.topology)
