@@ -102,14 +102,14 @@ class Packet:
 class Node:
     count = 0
 
-    def __init__(self, type, step_value):
+    def __init__(self, node_type, step_value):
         '''
         Increment Node class `count` attribute and assign it to
         Node instance id attribute. Create data element.
 
         :param type: Integer corresponding to predefined integer types,
             i.e. Source node, Relay node or Destination node.
-        :param step_value: 
+        :param step_value:
         '''
         self.id = Node.count
         Node.count += 1
@@ -118,7 +118,9 @@ class Node:
         self.wait_queue = []
         self.queue = deque()
 
-        self.type = type
+        if not isinstance(node_type, int):  
+            raise TypeError(f'Invalid type for Node.node_type {self.node_type}')
+        self.node_type = node_type
         self.time = 0
         self.packet_size = 1
         self.step_value = step_value
@@ -143,7 +145,7 @@ class Node:
         except:
             self.transmitting_count = 0
             now_count = self.transmitting_count
-        
+
         if now_count < count:
             self.transmit(network)
             self.transmitting_count += 1
@@ -156,17 +158,17 @@ class Node:
         '''
         to_relay_packets = []
         for packet in self.queue:
-            can_send, edge = network.can_send_through('Channel', 
-                                                      self, 
-                                                      packet.next_node, 
-                                                      packet.size, 
+            can_send, edge = network.can_send_through('Channel',
+                                                      self,
+                                                      packet.next_node,
+                                                      packet.size,
                                                       self.edges[packet.next_node])
             if can_send:
                 to_relay_packets.append(packet)
                 self.edges[packet.next_node] = edge
             else:
                 self.edges[packet.next_node] = edge
-        
+
         for p in to_relay_packets:
             popped_packet = self.queue.pop(self.queue.index(p))
             popped_packet.next_node.receive(network, popped_packet)
@@ -179,29 +181,29 @@ class Node:
         verboseprint(f'{self} received {received_packet}')
         received_packet.check_and_update_path(self, network.tick)
         self.wait_queue.append(received_packet)
-        if self.type == 2:
+        if self.node_type == 2:
             network.update_byte_count(received_packet)
         self.data['received_packets'].append(received_packet)
 
     def run(self, network):
         '''
         '''
-        if self.type == 0:
+        if self.node_type == 0:
             self.transmit(network)
-        elif self.type == 1:
+        elif self.node_type == 1:
             self.relay(network)
 
         self.update_queue()
         self.update_data()
-        
+
         self.time += 1
 
     def update_dest_node_list(self, network, dest_ids=None):
         if not dest_ids:
             for node in network.nodes:
-                if node.type == 2:
+                if node.node_type == 2:
                     self.dest_node_list.append(node)
-        
+
         if len(self.dest_node_list) == 0:
             raise Exception(f'No destinations registered for node {self}')
 
@@ -222,7 +224,7 @@ class Node:
         '''
         Push all the packets in wait_queue onto the main
         queue. This is done to give time for packets to propagate
-        at every tick, instead of having the packet flow to its 
+        at every tick, instead of having the packet flow to its
         destination in one tick.
         '''
         self.queue.extend(self.wait_queue)
@@ -285,32 +287,32 @@ class Node:
                and self.id == other.id)
 
     def  __str__(self):
-        if self.type == 0:
+        if self.node_type == 0:
             t = 'src'
-        elif self.type == 1:
+        elif self.node_type == 1:
             t = 'rel'
-        elif self.type == 2:
+        elif self.node_type == 2:
             t = 'dest'
         return f'Node {self.id} [{t}]'
 
     def __repr__(self):
-        return f'(Node id:{self.id},t:{self.type})'
+        return f'(Node id:{self.id},t:{self.node_type})'
 
 
 class MovingNode(Node):
-    def __init__(self, type, step_value, mobility_model):
+    def __init__(self, node_type, step_value, mobility_model):
         '''
         Defines methods and info on moving nodes. Specifically, it uses
-        a inputted mobility model generator function to calculate the 
+        a inputted mobility model generator function to calculate the
         nodes' position in meters.
 
-        :param mobility_model: generator that calculates the next (x, y, z) 
+        :param mobility_model: generator that calculates the next (x, y, z)
                                 position of node.
         '''
-        super().__init__(type, step_value)
+        super().__init__(node_type, step_value)
         self.position = (0, 0, 0)  #x, y, z  METERS
         self.mobility_model = mobility_model
-        self.is_moving = True if mobility_model else False
+        self.is_moving = True if callable(mobility_model) else False
 
     def initalize_data(self):
         super().initalize_data()
@@ -321,15 +323,15 @@ class MovingNode(Node):
         self.data['position_list'].append(self.position)
 
     def run(self, network):
-        if self.type == 0:
+        if self.node_type == 0:
             self.transmit(network)
-        elif self.type == 1:
+        elif self.node_type == 1:
             self.relay(network)
 
         self.move(network)
         self.update_queue()
         self.update_data()
-        
+
         self.time += 1
 
     def move(self, network):
@@ -343,22 +345,25 @@ class MovingNode(Node):
 
 
 class VaryingTransmitNode(MovingNode):
-    def __init__(self, type, step_value, mobility_model, packet_size, gen_rate):
-        super().__init__(type, step_value, mobility_model)
+    def __init__(self, node_type, step_value, mobility_model, packet_size, gen_rate):
+        super().__init__(node_type, step_value, mobility_model)
         self.neighbor_wait_time = {}  # Counter for every neighor when the next step to transmit is
         self.neighbors = {}  # Neighbors and the corresponding bandwidths
-        
+
         self.neighbor = None
         self.transmit_counter = None
         self.gen_step = None  # The time it takes to transmit next
 
         self.packet_size = packet_size
         self.gen_rate = gen_rate
+        if self.node_type == 0:
+            if not isinstance(gen_rate, int):
+                raise TypeError(f'Invalid type for Node.gen_rate, {gen_rate}: {type(gen_rate)}')
 
     def transmit(self, network):
         if (self.packet_size/self.gen_rate) < self.step_value:
             raise Exception(f'Generation Rate is too large: {self.gen_rate}')
-        
+
         # Intialize neighbors
         if len(self.neighbors) == 0:
             self.update_neighbor_counter(network)
@@ -371,7 +376,7 @@ class VaryingTransmitNode(MovingNode):
                 return
             packet.next_node.receive(network, packet)
             self.data['transmited_packets'].append(packet)
-            
+
             self.transmit_counter = self.gen_step
 
         elif self.transmit_counter >= 1:
@@ -384,7 +389,7 @@ class VaryingTransmitNode(MovingNode):
                 self.data['transmited_packets'].append(packet)
                 self.transmit_counter -= 1
                 print(f'{self} transmitted a packet.')
-            
+
             self.transmit_counter += self.gen_step
         else:
             self.transmit_counter += max(np.random.normal(self.gen_step), self.gen_step)
@@ -395,7 +400,7 @@ class VaryingTransmitNode(MovingNode):
             channel_bandwidth = network[self][neighbor]['Bandwidth']
             self.neighbor_wait_time[neighbor] = 0
             self.neighbors[neighbor] = self.packet_size / channel_bandwidth
-        
+
         self.neighbor = (n for n in itertools.cycle(self.neighbors.keys()))
         self.gen_step = (self.gen_rate/self.packet_size) * self.step_value
 
@@ -411,13 +416,13 @@ class RestrictedNode(VaryingRelayNode):
     '''
     Node object that has `restrictions` imposed onto it, such as max buffer size.
     '''
-    def __init__(self, type, step_value, mobility_model, packet_size, gen_rate, max_buffer_size):
+    def __init__(self, node_type, step_value, mobility_model, packet_size, gen_rate, max_buffer_size):
         '''
         :param max_buffer_size: Maximum number of Bytes (!) allowed in device buffer (queue).
         '''
-        super().__init__(type, step_value, mobility_model, packet_size, gen_rate)
+        super().__init__(node_type, step_value, mobility_model, packet_size, gen_rate)
         self.max_buffer_size = max_buffer_size
-    
+
     def initalize_data(self):
         super().initalize_data()
         self.data.update({'dropped_packets': []})
@@ -430,7 +435,7 @@ class RestrictedNode(VaryingRelayNode):
             packet = self.wait_queue.pop()
             current_queue_size += packet.size
             self.queue.append(packet)
-        
+
         if len(self.wait_queue) > 0:
             for packet in self.wait_queue:
                 packet.dropped()
