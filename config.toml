@@ -10,48 +10,48 @@ author = "Hans Hofner"
 [nodes]
     [nodes.src-nodes]
         type = 0
-        count = 5
+        count = 30
         position = 'random'
         movement = 'none'
         # Defines direct connections
-        connected-to = ['base-stations', 'uav-base-stations']
+        connected-to = ['base-stations', 'uav-base-stations', 'dest-nodes']
         [nodes.src-nodes.params]
             buffer-size =  0
             uplink-bandwidth = 'none'
-            downlink-bandwidth = 'none'
-            generation-rate = 1_000_000 # 1MBps
+            downlink-bandwidth = 5_000_000  # 5Kbps
+            generation-rate = 1_000 # 1MBps
     [nodes.base-stations]
         type = 1
-        count = 1
+        count = 10
         position = 'none'
         movement = 'none'
         connected-to = ['src-nodes', 'base-stations', 'uav-base-stations', 'dest-nodes']
         [nodes.base-stations.params]
             buffer-size = 100_000_000 # megabytes
             uplink-bandwidth = 'none'
-            downlink-bandwidth = 5_000_000 # MegaBytes per second
+            downlink-bandwidth = 100_000_000 # MegaBytes per second
             generation-rate = 'none'
     [nodes.uav-base-stations]
         type = 1
-        count = 1
+        count = 10
         position = 'none'
         movement = 'none'
         connected-to = ['src-nodes', 'base-stations', 'uav-base-stations', 'dest-nodes']
         [nodes.uav-base-stations.params]
             buffer-size = 80_000_000  # MegaBytes
             uplink-bandwidth = 'none'
-            downlink-bandwidth = 5_000_000
+            downlink-bandwidth = 5_000
             generation-rate = 'none'
     [nodes.dest-nodes]
         type = 2
-        count = 2
+        count = 1
         position = 'none'
         movement = 'none'
         connected-to = ['base-stations', 'uav-base-stations']
         [nodes.dest-nodes.params]
             buffer-size = 80_000_000
             uplink-bandwidth = 'none'
-            downlink-bandwidth = 5_000_000
+            downlink-bandwidth = 5_000
             generation-rate = 'none'
 [area]
     width = 10
