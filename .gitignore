@@ -1,6 +1,7 @@
 *.log
 *.csv
 config.toml
+launch.json
 __pycache__/
 .idea/
 img/
