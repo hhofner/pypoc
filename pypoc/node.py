@@ -90,7 +90,7 @@ class Packet:
         return self.path_nodes['future'][0]
 
     def __str__(self):
-        return f'Packet {self.id}'
+        return f'packet_{self.id}'
 
     def __repr__(self):
         return f'Packet(ID:{self.id}, SIZE:{self.size})'
@@ -290,7 +290,7 @@ class Node:
             t = 'rel'
         elif self.node_type == 2:
             t = 'dest'
-        return f'Node {self.id} [{t}]'
+        return f'node_{self.id}_{t}'
 
     def __repr__(self):
         return f'(Node id:{self.id},t:{self.node_type})'
