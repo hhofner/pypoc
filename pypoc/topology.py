@@ -12,7 +12,6 @@ import toml
 from node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode, RestrictedNode
 from mobility import ellipse_movement, straight_line
 
-configuration = toml.load('../config.toml')
 
 class Topology:
     def __init__(self, configuration):
@@ -107,6 +106,7 @@ def get_sagin_positional(network):
     return pos_dict
 
 if __name__ == '__main__':
+    configuration = toml.load('../config.toml')
     print('testing topology')
     new = Topology(configuration)
     print(new.topology)
