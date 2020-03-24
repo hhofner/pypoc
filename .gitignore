@@ -1,6 +1,6 @@
 *.log
 *.csv
-config.toml
+*.toml
 launch.json
 __pycache__/
 .idea/
