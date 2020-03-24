@@ -1,5 +1,6 @@
 *.log
 *.csv
+config.toml
 __pycache__/
 .idea/
 img/
