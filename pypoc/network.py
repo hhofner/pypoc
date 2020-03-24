@@ -29,7 +29,6 @@ from scipy.spatial import distance
 from topology import Topology
 from node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode, RestrictedNode
 
-configuration = toml.load('../config.toml')
 
 class NetworkData:
     '''
@@ -221,7 +220,7 @@ class PyPocNetwork(nx.Graph):
     ###################################################################################################
     # Main Interface Method ###########################################################################
     ###################################################################################################
-    def run_network_with(self, config):
+    def run_network_with(self, configuration):
         '''
         :param minutes: Number of minutes to run the simulation for.
         :param edge_structure: list of edge tuples with bandwidth definition.
@@ -248,5 +247,6 @@ class PyPocNetwork(nx.Graph):
         self.meta.author = configuration['author']
 
 if __name__ == '__main__':
+    configuration = toml.load('../config.toml')
     new = PyPocNetwork()
     new.run_network_with(configuration)
