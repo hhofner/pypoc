@@ -12,8 +12,10 @@ __author__ = 'Hans Hofner'
 import itertools
 import itertools
 import pickle
+import csv
 import os
 from copy import copy
+from datetime import datetime, timedelta
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -22,6 +24,7 @@ import seaborn as sns
 import pandas as pd
 import numpy as np
 import toml
+from tqdm import tqdm
 from scipy.spatial import distance
 from topology import Topology
 from node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode, RestrictedNode
@@ -37,6 +40,8 @@ class NetworkData:
         Initialize data dictionary that is never to be accessed directly. Naming convention is
         to append either "_list" or "_value" to data key.
         '''
+        self.name = ''
+        self.author = ''
         self.data = {}
 
         # List of total network throughput value, per time.
@@ -60,9 +65,38 @@ class NetworkData:
         # Value of start time of data run
         self.data['start_time_value'] = 0
 
+        # Value of end time of data run
+        self.data['end_time_value'] = 0
+
+        # Value of current packet drop rate
+        self.data['packet_drop_rate_value'] = 0
+
+    def data_save_to_file(self, network, filename=None):
+        '''
+        Save all metadata to file, as well as all nodes data.
+        :param network: PyPocNetwork object
+        :return None:
+        '''
+        if filename is None:
+            filename = f'{self.name}_{self.data["start_time_value"]}.csv'
+
+        with open(filename, mode='w') as csvfile:
+            writer = csv.writer(csvfile, dialect='excel')
+            writer.writerow(['title', self.name])
+            writer.writerow(['author', self.author])
+            for key in self.data.keys():
+                if isinstance(self.data[key], list):
+                    writer.writerow([key] + self.data[key])
+                else:
+                    writer.writerow([key] + [self.data[key]])
+
 class PyPocNetwork(nx.Graph):
+    '''
+    PyPocNetwork object that manages
+    '''
     def initialize(self, packet_size):
         self.meta = NetworkData()  # for a fun naming thing; ie self.meta.data hehe
+        self.meta.name
 
         self.packet_size = packet_size
         self._initialize_step_values()
@@ -98,11 +132,11 @@ class PyPocNetwork(nx.Graph):
 
         return highest
 
-    #TODO: Delete or not?
     def update_throughput(self):
         try:
-            self.overall_throughput = (self.total_byte_count / (self.tick * self.step_value))
-            self.data['throughputs'].append(self.overall_throughput)
+            overall_throughput = (self.meta.data['total_byte_count_value'] / (self.tick * self.meta.data['step_value']))
+            self.meta.data['throughput_list'].append(overall_throughput)
+            self.meta.data['throughput_value'] = overall_throughput
         except:
             raise
 
@@ -128,6 +162,7 @@ class PyPocNetwork(nx.Graph):
             n1, n2 = edge
             self[n1][n2]['Channel'] = len(n1.queue) + len(n2.queue)
 
+    # TODO: This needs to be looked at.
     def update_channel_links(self):
         for node in self.nodes:
             if node.is_moving:
@@ -156,26 +191,32 @@ class PyPocNetwork(nx.Graph):
     ###################################################################################################
     def run_main_loop(self, minutes):
             seconds = minutes * 60
-            ticks = seconds / self.step_value
+            ticks = int(seconds / self.step_value)
             input(f'Please confirm run. {ticks} ticks, ok? [y]')
-            self.tick = 1
-            while self.tick < ticks:
-                print(f'\n~~~~ TIME {self.tick} ~~~~\n')
+            self.meta.data['start_time_value'] = datetime.now()
+            print(f'~~~~ Running {self.meta.name} for {ticks} time steps.')
+            for self.tick in tqdm(range(1, ticks+1)):
+                # print(f'\n~~~~ TIME {self.tick} ~~~~\n')
                 for node in self.nodes:
-                    print(f'---->: {node} :<----')
+                    # print(f'---->: {node} :<----')
                     node.run(self)
-                self.tick += 1
 
                 self.update_channel_loads()
                 self.update_channel_links()
+                self.update_throughput()
+
+            # Postprocessing methods here #
+            self.meta.data['end_time_value'] = datetime.now()
 
             print(f'########### FINISH ###########')
             print(f'\tGENERATED PACKETS: {Packet.generated_count}')
             print(f'\tARRIVED PACKETS: {Packet.arrived_count}')
             print(f'\tDROPPED PACKETS: {Packet.dropped_count}')
             print(f'\tPACKET LOSS RATE: {Packet.dropped_count/Packet.generated_count}')
-            print(f'\tOVERALL THROUGHPUT: {self.overall_throughput/1e3} KBps')
-            self.packet_drop_rate = (Packet.dropped_count / Packet.generated_count) * 100
+            print(f'\tTIME DIFFERENCE: {self.meta.data["end_time_value"] - self.meta.data["start_time_value"]}')
+            print(f'\tOVERALL THROUGHPUT: {self.meta.data["throughput_value"]/1e3} KBps')
+            
+            self.meta.data_save_to_file(None)
 
     ###################################################################################################
     # Main Interface Method ###########################################################################
@@ -201,6 +242,10 @@ class PyPocNetwork(nx.Graph):
         # Get minutes
         minutes = configuration['global']['minutes']
         self.run_main_loop(minutes)
+
+        # Set title, author
+        self.meta.title = configuration['title']
+        self.meta.author = configuration['author']
 
 if __name__ == '__main__':
     new = PyPocNetwork()
