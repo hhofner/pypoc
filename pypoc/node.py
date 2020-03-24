@@ -14,9 +14,6 @@ import itertools
 
 import networkx as nx
 
-verbose = True
-verboseprint = print if verbose else lambda *a, **k: None
-
 
 class Packet:
     arrived_count = 0
@@ -77,7 +74,7 @@ class Packet:
     def arrived(self, tick):
         if not self._has_arrived:
             Packet.arrived_count += 1
-            print(f'{self} arrived!')
+            # print(f'{self} arrived!')
             self.died_tick = tick
             self.delay = self.died_tick - self.born_tick
         self._has_arrived = True
@@ -178,7 +175,7 @@ class Node:
         '''
         Update packet path and append to node queue.
         '''
-        verboseprint(f'{self} received {received_packet}')
+        # print(f'{self} received {received_packet}')
         received_packet.check_and_update_path(self, network.tick)
         self.wait_queue.append(received_packet)
         if self.node_type == 2:
@@ -264,7 +261,7 @@ class Node:
             try:
                 path = nx.shortest_path(network, self, dest, weight='Channel')
             except nx.exception.NetworkXNoPath:
-                print(f'No path {self} -> {dest} ')
+                # print(f'No path {self} -> {dest} ')
                 return
         else:
             # TODO: This is dangerous because next_hop might not exist.
@@ -272,7 +269,7 @@ class Node:
                 path = nx.shortest_path(network, next_hop, dest, weight='Channel')
                 path = [self] + path
             except networkx.exception.NetworkXNoPath:
-                print(f'No path {self} -> {dest} ')
+                # print(f'No path {self} -> {dest} ')
                 return
 
         # TODO: Implement the functionality of nodes that can't reach
@@ -388,7 +385,7 @@ class VaryingTransmitNode(MovingNode):
                 packet.next_node.receive(network, packet)
                 self.data['transmited_packets'].append(packet)
                 self.transmit_counter -= 1
-                print(f'{self} transmitted a packet.')
+                # print(f'{self} transmitted a packet.')
 
             self.transmit_counter += self.gen_step
         else:
