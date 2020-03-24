@@ -1,52 +1,39 @@
 # PYPOC
-A Python Discrete Event Simulator for Heterogeneous Wireless Networks.
+A Simplified Discrete Event Simulator for Heterogeneous Wireless Networks.
 
+## Installation
+Clone this repo. Ensure a Python version of 3.6 or higher. One may use PIP to install the necessary libraries by running:
+```
+pip3 -r requirements.txt 
+```
+
+## Usage
 To run this simulation, go into the pypoc directory and run the (same name) directory of pypoc:
 
 ```
 python pypoc
 ```
 
-When wanting to run a specific network simulation with specific parameteres, edit the `setup.ini` file, which the structure of that config file is explained below.
+When wanting to run a specific network simulation with specific parameters, create and edit a `config.toml` file, which contains the structure explained in the attached `example_config.toml` file. It uses [TOML syntax](https://github.com/toml-lang/toml).
 
 The network simulation uses "Bytes" instead of "bits" (packets instead of streams) and so any bandwidth or packet size parameters should be in Bytes for example:
 
-```python
-bandwith=1e3  # equals to 1 Kilo-Byte per second, or 8Kbps
+```toml
+downlink_bandwith = 1_000  # equals to 1 Kilo-Byte per second, or 8Kbps
 ```
 
+The simulation outputs a CSV file containing all the relevant data of the simulation.
 
+## What Can It Do?
+TODO
 
 ## Configuration File Structure
-The configuration file `setup.ini` defines all the specific parameters for the network. The specific writing style as of now is: everything but specific parameters under sections are lower-case.
-
-#### [network]
-
-#### [nodes]
-
-#### [positions]
-- BASE_STATION_POSITIONING_METHOD: The algorithmic method to determine the positions of base stations.
-    - normal
-- BASE_STATION_POSITIONS: This allows you to specify by hand the (x, y) coordinate of base stations. This overrides the previous positioning method parameter.
-    - x1 y1 x2 y2 x3 y3 ...
-
-#### [ground-physical]
-- THRESHOLD_CAPACITY : This option is used for when decididing whether a UE is far away enough for the link not to be valid. It compares the calculated bandwidth (with signal tools) to this threshold.
-    - {integer number}
-
-#### [air-physical]
-
-#### [space-physical]
-
-#### [data]
+The configuration file `config.toml` defines all the specific parameters for the network. 
 
 ## Code Documentation
 
 The core of the code resides in the PYPOC directory. These files should rarely change once the code base
 is stable. Someone who wants to run a simulation will do so only by editing the configuration file named "setup.ini"
 and the corresponding simulation results will be put into a directory.
-
-Unfortunately, as of March 16th, the way of running individual simulations is by creating special simulation scripts
-with some random number ID that identifies the simulation.
 
 
