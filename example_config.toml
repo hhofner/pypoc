@@ -1,0 +1,30 @@
+title = "Network Title"
+author = "Name of Author"
+
+# Global parameters that apply to the entire network.
+[global]
+    link-foundation = 'distance'  # How are links to be connected?
+    packet-size = 125  # Packet size should be in Bytes; 125 Bytes = 1000 bits = 1Kb
+    minutes = 1
+    [global.link-foundation-params]  # If you decide to create a special type of link foundation, you can create specific params for it.
+        distance-threshold = 'none'  # This tells whether a link is valid or not by a particular distance threshold, like 5km.
+        your-own-foundation-params = 'none'
+[nodes]
+# Here you define the different type of nodes that are to be in the network. For example "UAV-Base-Station" or "User-Equipment".
+# each node can be one of three types, a "source node", a "relay node" or a "destination node".
+# It is assumed that source nodes are sending packages to destination nodes.
+    [nodes.special-name-of-node]
+        type = 0  # 0 for source, 1 for relay, 2 for destination.
+        count = 30  # How many of these nodes will exist?
+        position = 'random'  # TODO: What are their starting positions? 
+        movement = 'none'  # TODO: What are their movement patterns?
+        # Defines direct connections
+        connected-to = ['another-special-name-of-node', 'yet-another-special-name-of-node']  # What nodes can these node create links to?
+        [nodes.special-name-of-node.params]
+            buffer-size = 0  # Buffer size in Bytes
+            uplink-bandwidth = 'none'
+            downlink-bandwidth = 5_000_000
+            generation-rate = 1_000 # If the node is sending packages, what is the rate it can send them? #TODO: Be useful for relays as well.
+[area]
+    width = 10  #in km
+    height = 10
