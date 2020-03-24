@@ -126,7 +126,7 @@ class PyPocNetwork(nx.Graph):
             v, u = edge
             if highest is None:
                highest = self[u][v]['Bandwidth']
-            elif self[u][v]['Bandwidth'] < highest:
+            elif self[u][v]['Bandwidth'] > highest:
                 highest = self[u][v]['Bandwidth']
 
         return highest
@@ -154,6 +154,15 @@ class PyPocNetwork(nx.Graph):
             if node.node_type == type_of_node:
                 count += 1
         return count
+
+    def collect_node_data(self):
+        '''
+        Collect all node data populating it into self.meta.data dictionary.
+        '''
+        print('Collecting node data...')
+        for node in self.nodes:
+            for key in node.data.keys():
+                self.meta.data[f'{node}_{key}'] = node.data[key]
 
     # TODO: This needs to be addressed...perhaps in EdgeHandler?
     def update_channel_loads(self):
@@ -191,7 +200,9 @@ class PyPocNetwork(nx.Graph):
     def run_main_loop(self, minutes):
             seconds = minutes * 60
             ticks = int(seconds / self.step_value)
-            input(f'Please confirm run. {ticks} ticks, ok? [y]')
+            answer = input(f'Please confirm run. {ticks} ticks, ok? ([y]/n) ')
+            if answer == 'n':
+                print('Did not run'); return
             self.meta.data['start_time_value'] = datetime.now()
             print(f'~~~~ Running {self.meta.name} for {ticks} time steps.')
             for self.tick in tqdm(range(1, ticks+1)):
@@ -206,6 +217,7 @@ class PyPocNetwork(nx.Graph):
 
             # Postprocessing methods here #
             self.meta.data['end_time_value'] = datetime.now()
+            self.collect_node_data()
 
             print(f'########### FINISH ###########')
             print(f'\tGENERATED PACKETS: {Packet.generated_count}')
