@@ -31,15 +31,12 @@ from node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode
 
 
 class NetworkData:
-    '''
-    Contains specific InfoData objects on the Network.
-    '''
     def __init__(self):
         '''
         Initialize data dictionary that is never to be accessed directly. Naming convention is
         to append either "_list" or "_value" to data key.
         '''
-        self.name = ''
+        self.title = ''
         self.author = ''
         self.data = {}
 
@@ -70,18 +67,21 @@ class NetworkData:
         # Value of current packet drop rate
         self.data['packet_drop_rate_value'] = 0
 
-    def data_save_to_file(self, network, filename=None):
+    def data_save_to_file(self, network, filename=None, data_filepath=None):
         '''
         Save all metadata to file, as well as all nodes data.
         :param network: PyPocNetwork object
         :return None:
         '''
         if filename is None:
-            filename = f'{self.name}_{self.data["start_time_value"]}.csv'
+            filename = f'{self.title}_{self.data["start_time_value"].strftime("%d%b%y_%H_%M_%S")}.csv'
+
+        if data_filepath is None:
+            filepath = f'../simulation_data/' + filename
 
         with open(filename, mode='w') as csvfile:
             writer = csv.writer(csvfile, dialect='excel')
-            writer.writerow(['title', self.name])
+            writer.writerow(['title', self.title])
             writer.writerow(['author', self.author])
             for key in self.data.keys():
                 if isinstance(self.data[key], list):
@@ -93,12 +93,14 @@ class PyPocNetwork(nx.Graph):
     '''
     PyPocNetwork object that manages
     '''
-    def initialize(self, packet_size):
+    def initialize(self, configuration):
         self.meta = NetworkData()  # for a fun naming thing; ie self.meta.data hehe
-        self.meta.name
 
-        self.packet_size = packet_size
+        self.packet_size = configuration['global']['packet-size']
         self._initialize_step_values()
+
+        self.meta.title = configuration['title']
+        self.meta.author = configuration['author']
 
     def _initialize_step_values(self):
         '''
@@ -164,6 +166,24 @@ class PyPocNetwork(nx.Graph):
             for key in node.data.keys():
                 self.meta.data[f'{node}_{key}'] = node.data[key]
 
+    def collect_packet_data(self):
+        '''
+        Iterate through all packets (dropped ones, too) and collect their data into file.
+        '''
+        # In theory, there should be no double reference to the same packet...
+        for node in self.nodes:
+            for dropped_packet in node.data['dropped_packets']:
+                self.meta.data[f'{dropped_packet}_path'] = dropped_packet.path_nodes['past']
+                self.meta.data[f'{dropped_packet}_born_tick'] = dropped_packet.born_tick
+                self.meta.data[f'{dropped_packet}_died_tick'] = dropped_packet.died_tick
+            if node.node_type is 2:
+                for packet in node.queue:
+                    # Path taken by Packet
+                    self.meta.data[f'{packet}_path'] = packet.path_nodes['past']
+                    self.meta.data[f'{packet}_born_tick'] = packet.born_tick
+                    self.meta.data[f'{packet}_died_tick'] = packet.died_tick
+                    
+
     # TODO: This needs to be addressed...perhaps in EdgeHandler?
     def update_channel_loads(self):
         for edge in self.edges:
@@ -197,14 +217,14 @@ class PyPocNetwork(nx.Graph):
     ###################################################################################################
     # Main Loop #######################################################################################
     ###################################################################################################
-    def run_main_loop(self, minutes):
+    def run_main_loop(self, minutes, **kwargs):
             seconds = minutes * 60
             ticks = int(seconds / self.step_value)
             answer = input(f'Please confirm run. {ticks} ticks, ok? ([y]/n) ')
             if answer == 'n':
                 print('Did not run'); return
             self.meta.data['start_time_value'] = datetime.now()
-            print(f'~~~~ Running {self.meta.name} for {ticks} time steps.')
+            print(f'~~~~ Running {self.meta.title} for {ticks} time steps ~~~~')
             for self.tick in tqdm(range(1, ticks+1)):
                 # print(f'\n~~~~ TIME {self.tick} ~~~~\n')
                 for node in self.nodes:
@@ -218,6 +238,8 @@ class PyPocNetwork(nx.Graph):
             # Postprocessing methods here #
             self.meta.data['end_time_value'] = datetime.now()
             self.collect_node_data()
+            self.collect_packet_data()
+            self.meta.data_save_to_file(self)
 
             print(f'########### FINISH ###########')
             print(f'\tGENERATED PACKETS: {Packet.generated_count}')
@@ -227,12 +249,11 @@ class PyPocNetwork(nx.Graph):
             print(f'\tTIME DIFFERENCE: {self.meta.data["end_time_value"] - self.meta.data["start_time_value"]}')
             print(f'\tOVERALL THROUGHPUT: {self.meta.data["throughput_value"]/1e3} KBps')
             
-            self.meta.data_save_to_file(None)
 
     ###################################################################################################
     # Main Interface Method ###########################################################################
     ###################################################################################################
-    def run_network_with(self, configuration):
+    def run_network_with(self, configuration, **kwargs):
         '''
         :param minutes: Number of minutes to run the simulation for.
         :param edge_structure: list of edge tuples with bandwidth definition.
@@ -246,17 +267,12 @@ class PyPocNetwork(nx.Graph):
         new = Topology(configuration)
         self.add_edges_from(new.topology)
 
-        # Get packet size
-        packet_size = configuration['global']['packet-size']
-        self.initialize(packet_size)
+        self.initialize(configuration)
 
         # Get minutes
         minutes = configuration['global']['minutes']
         self.run_main_loop(minutes)
 
-        # Set title, author
-        self.meta.title = configuration['title']
-        self.meta.author = configuration['author']
 
 if __name__ == '__main__':
     configuration = toml.load('../config.toml')
