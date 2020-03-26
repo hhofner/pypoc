@@ -42,7 +42,6 @@ class Topology:
         if configuration['global']['link-foundation'] == 'distance':
             self.create_distance_links(configuration)
 
-
     def create_distance_links(self, configuration):
         '''
         Create a list of tuples that represent a link between two nodes.
