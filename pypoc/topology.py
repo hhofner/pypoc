@@ -8,7 +8,6 @@ import random
 import argparse
 import numpy as np
 import toml
-
 from node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode, RestrictedNode
 from mobility import ellipse_movement, straight_line
 
