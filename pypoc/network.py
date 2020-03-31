@@ -77,9 +77,9 @@ class NetworkData:
             filename = f'{self.title}_{self.data["start_time_value"].strftime("%d%b%y_%H_%M_%S")}.csv'
 
         if data_filepath is None:
-            filepath = f'../simulation_data/' + filename
+            data_filepath = f'./simulation_data/' + filename
 
-        with open(filename, mode='w') as csvfile:
+        with open(data_filepath, mode='w') as csvfile:
             writer = csv.writer(csvfile, dialect='excel')
             writer.writerow(['title', self.title])
             writer.writerow(['author', self.author])
