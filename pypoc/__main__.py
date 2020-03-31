@@ -5,16 +5,21 @@ creates & runs a Network.
 import network
 import toml
 import argparse
+import plotter
 
 __author__ = 'Hans Hofner'
 
 parser = argparse.ArgumentParser()
-parser.parse_args()
 
-parser.add_argument('--plot', help='Plot most recent simulation run or passed .csv file.')  #TODO:
-parser.add_argument('--title', type=str, help='Title of simulation run.')
+parser.add_argument('--plot', action='store_true', help='Plot most recent simulation run or passed .csv file.')
+parser.add_argument('--run', action='store_true', help='Title of simulation run.')
+
+args = parser.parse_args()
 
 configuration = toml.load('config.toml')
 
-new = network.PyPocNetwork()
-new.run_network_with(configuration)
+if args.run:
+    new = network.PyPocNetwork()
+    new.run_network_with(configuration)
+elif args.plot:
+    plotter.plot()
