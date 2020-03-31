@@ -32,31 +32,31 @@ def plot(filepath=None, sim_directory='./simulation_data'):
         if not os.path.isfile(filepath):
             raise Exception(f'`{filepath}` is not a valid filepath.')
 
-    # fig_shapes = [()]
 
     will_plot = {'queue_size': True, 'packet_stats': True}
 
-    fig, ax = plt.subplots(1,2)   
+    fig_shapes = [(1,1), (1,2), (2,2), (2,3), (3,3)]
+    fshape = sum(1 for key in will_plot if will_plot[key])
+    # TODO: Need to assign axes to keys
+
+    fig, ax = plt.subplots(fshape)
 
     with open(filepath, mode='r') as csvfile:
         reader = csv.reader(csvfile, delimiter=',')
-        # data = []
+        queue_length_data_to_plot = []
+
         for row in reader:
+
             if will_plot['queue_size']:
                 queue_length_data_to_plot = []
                 if 'rel_queue_size' in row[0]:
                     for data_point in row[1:]:
                         queue_length_data_to_plot.append(int(data_point))
-                    ax[0].plot(queue_length_data_to_plot, label=row[0])
+                    ax[0].plot(queue_length_data_to_plot, label='ygerag')
+                    ax[0].legend(loc='upper right')
+
             if will_plot['packet_stats']:
                 pass
-
-            # if 'throughput_list' in row[0]:
-            #     for data_point in row[1:]:
-            #         data_to_plot.append(float(data_point))
-            #     ax.plot(data_to_plot, label=row[0])
-
-    graphs_to_plot = []
 
     plt.legend(loc='upper right')
 
