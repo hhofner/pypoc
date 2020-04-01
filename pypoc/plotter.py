@@ -12,9 +12,7 @@ import datetime
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-# sns.set()
-# sns.set_style('whitegrid')
-def plot(filepath=None, sim_directory='./simulation_data'):
+def get_filepath(filepath=None, sim_directory='./simulation_data'):
     if filepath is None:
         if not os.path.isdir(sim_directory):
             raise Exception(f'{sim_directory} directory does not exist!')
@@ -25,15 +23,23 @@ def plot(filepath=None, sim_directory='./simulation_data'):
             # Find most recent file
             if os.path.isfile(temp_filepath):
                 if filepath is None:
-                    filepath = temp_filepath
-                elif os.path.getmtime(temp_filepath) > os.path.getmtime(filepath):
-                    filepath = temp_filepath
+                    filepath= temp_filepath
+                elif os.path.getctime(temp_filepath) > os.path.getctime(filepath):
+                    filepath= temp_filepath
+        return filepath
+        print(f'Plotting most recent file {filepath}')
     else:
         if not os.path.isfile(filepath):
             raise Exception(f'`{filepath}` is not a valid filepath.')
 
+def plot_all(filepath=None, sim_directory='./simulation_data'):
+    filepath = get_filepath(filepath, sim_directory)
 
-    will_plot = {'queue_size': True, 'packet_stats': True}
+    sns.set()
+    sns.set_style('whitegrid')
+
+    will_plot = {'queue_size': True, 'packet_stats': False}
+    queue_size_count = 0
 
     fig_shapes = [(1,1), (1,2), (2,2), (2,3), (3,3)]
     fshape = sum(1 for key in will_plot if will_plot[key])
@@ -43,21 +49,53 @@ def plot(filepath=None, sim_directory='./simulation_data'):
 
     with open(filepath, mode='r') as csvfile:
         reader = csv.reader(csvfile, delimiter=',')
-        queue_length_data_to_plot = []
+        
+        number_of_queue_plots = 10
 
         for row in reader:
-
-            if will_plot['queue_size']:
-                queue_length_data_to_plot = []
-                if 'rel_queue_size' in row[0]:
-                    for data_point in row[1:]:
-                        queue_length_data_to_plot.append(int(data_point))
-                    ax[0].plot(queue_length_data_to_plot, label='ygerag')
-                    ax[0].legend(loc='upper right')
+            # Queue Lengths
+            temp_ql_data = []
+            if 'rel_queue_size' in row[0]:
+                for data_point in row[1:]:
+                    temp_ql_data.append(int(data_point))
+                if will_plot['queue_size'] and number_of_queue_plots > 0:
+                    ax.plot(temp_ql_data, label=row[0])
+                    number_of_queue_plots -= 1
 
             if will_plot['packet_stats']:
                 pass
 
     plt.legend(loc='upper right')
+
+    plt.show()
+
+def plot_packet_simple(filepath=None, sim_directory='./simulation_data', more_filepaths=None):
+    fig, ax = plt.subplots()
+    filepath = get_filepath(filepath, sim_directory)
+
+    sns.set()
+    sns.set_style('whitegrid')
+
+    # Plot singular
+    if more_filepaths is None:/
+        with open(filepath, mode='r') as csvfile:
+            reader = csv.reader(csvfile, delimiter=',')
+            bars = {}
+            for row in reader:
+                if 'packet_generated_value' in row[0]:
+                    generated_value = int(row[1])
+                    bars['Generated'] = generated_value
+                if 'packet_drop_value' in row[0]:
+                    drop_value = int(row[1])
+                    bars['Dropped'] = drop_value
+                if 'packet_arrive_value' in row[0]:
+                    arrive_value = int(row[1])
+                    bars['Arrived'] = arrive_value
+            
+            ax.bar(bars.keys(), bars.values())
+    
+    # Plot multiple
+    else:
+        print(more_filepaths)
 
     plt.show()
