@@ -9,6 +9,7 @@ import os
 import csv
 import datetime
 
+import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
@@ -71,13 +72,13 @@ def plot_all(filepath=None, sim_directory='./simulation_data'):
 
 def plot_packet_simple(filepath=None, sim_directory='./simulation_data', more_filepaths=None):
     fig, ax = plt.subplots()
-    filepath = get_filepath(filepath, sim_directory)
 
     sns.set()
     sns.set_style('whitegrid')
 
     # Plot singular
-    if more_filepaths is None:/
+    if more_filepaths is None:
+        filepath = get_filepath(filepath, sim_directory)
         with open(filepath, mode='r') as csvfile:
             reader = csv.reader(csvfile, delimiter=',')
             bars = {}
@@ -96,6 +97,29 @@ def plot_packet_simple(filepath=None, sim_directory='./simulation_data', more_fi
     
     # Plot multiple
     else:
-        print(more_filepaths)
+        generated_values = []
+        arrived_values = []
+        dropped_values = []
+        for filepath in more_filepaths:
+            with open(filepath, mode='r') as csvfile:
+                reader = csv.reader(csvfile, delimiter=',')
+                for row in reader:
+                    if 'packet_generated_value' in row[0]:
+                        g_val = int(row[1])
+                        generated_values.append(g_val)
+                    if 'packet_drop_value' in row[0]:
+                        d_val = int(row[1])
+                        dropped_values.append(d_val)
+                    if 'packet_arrive_value' in row[0]:
+                        a_val = int(row[1])
+                        arrived_values.append(a_val)
+        
+        width = 0.7
+        indices = np.arange(len(generated_values))
+        plt.bar(indices, generated_values, width=width, color='b', label='Number of generated packets.')
+        plt.bar(indices, arrived_values, width=width, color='g', alpha=0.5, label='Number of arrived packets.')
+        plt.bar(indices, dropped_values, width=width, color='r', alpha=0.5, label='Number of dropped packets.')
 
+        plt.xticks(indices, more_filepaths )
+        plt.legend()
     plt.show()
