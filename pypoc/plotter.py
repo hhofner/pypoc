@@ -116,9 +116,9 @@ def plot_packet_simple(filepath=None, sim_directory='./simulation_data', more_fi
         
         width = 0.7
         indices = np.arange(len(generated_values))
-        plt.bar(indices, generated_values, width=width, color='b', label='Number of generated packets.')
-        plt.bar(indices, arrived_values, width=width, color='g', alpha=0.5, label='Number of arrived packets.')
-        plt.bar(indices, dropped_values, width=width, color='r', alpha=0.5, label='Number of dropped packets.')
+        plt.bar(indices, generated_values, width=width, color='b', label='Total packets.')
+        plt.bar([i+0.25*width for i in indices], arrived_values, width=width, color='g', label='Arrived packets.')
+        plt.bar([i+0.5*width for i in indices], dropped_values, width=width, color='r', label='Dropped packets.')
 
         plt.xticks(indices, more_filepaths )
         plt.legend()
