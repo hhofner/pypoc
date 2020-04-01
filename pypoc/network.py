@@ -182,7 +182,10 @@ class PyPocNetwork(nx.Graph):
                     self.meta.data[f'{packet}_path'] = packet.path_nodes['past']
                     self.meta.data[f'{packet}_born_tick'] = packet.born_tick
                     self.meta.data[f'{packet}_died_tick'] = packet.died_tick
-                    
+        
+        self.meta.data['packet_drop_value'] = Packet.dropped_count
+        self.meta.data['packet_arrive_value'] = Packet.arrived_count
+        self.meta.data['packet_generated_value'] = Packet.generated_count
 
     # TODO: This needs to be addressed...perhaps in EdgeHandler?
     def update_channel_loads(self):
@@ -275,6 +278,4 @@ class PyPocNetwork(nx.Graph):
 
 
 if __name__ == '__main__':
-    configuration = toml.load('../config.toml')
-    new = PyPocNetwork()
-    new.run_network_with(configuration)
+    print('Herein lies the Network class...')
