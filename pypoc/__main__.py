@@ -13,6 +13,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('--plot', action='store_true', help='Plot most recent simulation run or passed .csv file.')
 parser.add_argument('--all', action='store_true', help='Plot all stats.')
+parser.add_argument('--queue', action='store_true', help='Plot analysis of number of packets in the queue.')
 parser.add_argument('--packets', action='store_true', help='Plot generated/arrived/dropped packets bar chart.')
 parser.add_argument('--datafile', nargs='*', help='Data files to plot.')
 
@@ -35,3 +36,8 @@ elif args.plot:
             plotter.plot_packet_simple(more_filepaths=args.datafile)
         else:
             plotter.plot_packet_simple()
+    elif args.queue:
+        if args.datafile:
+            plotter.plot_queue_simple(more_filepaths=args.datafile)
+        else:
+            plotter.plot_queue_simple()
