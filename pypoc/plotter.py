@@ -1,6 +1,5 @@
 '''
-Plotting module. Also to be able to be run from the command
-line passing in Pickle files as arguments.
+Plotting module.
 '''
 
 __author__ = 'Hans Hofner'
@@ -10,6 +9,7 @@ import csv
 import datetime
 
 import numpy as np
+import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
@@ -93,7 +93,7 @@ def plot_packet_simple(filepath=None, sim_directory='./simulation_data', more_fi
                     arrive_value = int(row[1])
                     bars['Arrived'] = arrive_value
             
-            ax.bar(bars.keys(), bars.values())
+            ax.bar(bars.keys(), bars.values(), color=['r', 'g', 'b'])
     
     # Plot multiple
     else:
@@ -120,6 +120,58 @@ def plot_packet_simple(filepath=None, sim_directory='./simulation_data', more_fi
         plt.bar([i+0.25*width for i in indices], arrived_values, width=width, color='g', label='Arrived packets.')
         plt.bar([i+0.5*width for i in indices], dropped_values, width=width, color='r', label='Dropped packets.')
 
-        plt.xticks(indices, more_filepaths )
+        plt.xticks(indices, more_filepaths)
         plt.legend()
+    
+    plt.show()
+
+def plot_queue_simple(filepath=None, sim_directory='./simulation_data', more_filepaths=None, max_plots=1, restrained_time=False):
+    plt.style.use('fivethirtyeight')
+    fig, ax = plt.subplots()
+
+    if more_filepaths:
+        ''' Multiple plotting '''
+        # First, collect all queue_l for one file
+        #   calculate the average for all at every point
+        # Then plot
+        for filepath in more_filepaths:
+            temp_data = []
+            # Collect data
+            with open(filepath, mode='r') as csvfile:
+                reader = csv.reader(csvfile, delimiter=',')
+                for row in reader:
+                    temp_row_data = []
+                    if 'rel_queue' in row[0]:
+                        for data_point in row[1:]:
+                            temp_row_data.append(int(data_point))
+                        temp_data.append(temp_row_data)
+            # Turn into DataFrame and compress columns into averages
+            queue_df = pd.DataFrame(temp_data)
+            averages = queue_df.mean().tolist()
+            ax.plot(averages, label=filepath)
+        plt.legend()
+        ax.set_title('Average number of packets for all relay nodes per time.')
+        ax.set_xlabel('Ticks')
+        ax.set_ylabel('Amount')
+                    
+    else:
+        ''' Singular plotting '''
+        filepath = get_filepath(filepath, sim_directory) # Get most recent
+        times_plotted = 0
+        with open(filepath, mode='r') as csvfile:
+            reader = csv.reader(csvfile, delimiter=',')
+            for row in reader:
+                if times_plotted >= max_plots:
+                    break
+                temp_ql_data = []
+                if 'rel_queue' in row[0]:
+                    for data_point in row[1:]:
+                        temp_ql_data.append(int(data_point))
+                    ax.plot(temp_ql_data, label=row[0])
+                    times_plotted += 1
+        plt.legend()
+        ax.set_title('Number of packets in queues.')
+        ax.set_xlabel('Ticks')
+        ax.set_ylabel('Amount')
+
     plt.show()
