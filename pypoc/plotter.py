@@ -114,12 +114,13 @@ def plot_packet_simple(filepath=None, sim_directory='./simulation_data', more_fi
                         a_val = int(row[1])
                         arrived_values.append(a_val)
         
-        width = 0.7
+        width = 0.55
         indices = np.arange(len(generated_values))
         plt.bar(indices, generated_values, width=width, color='b', label='Total packets.')
         plt.bar([i+0.25*width for i in indices], arrived_values, width=width, color='g', label='Arrived packets.')
         plt.bar([i+0.5*width for i in indices], dropped_values, width=width, color='r', label='Dropped packets.')
 
+        ax.set_title('Packet Information for Multiple Simulations')
         plt.xticks(indices, more_filepaths)
         plt.legend()
     
@@ -175,3 +176,66 @@ def plot_queue_simple(filepath=None, sim_directory='./simulation_data', more_fil
         ax.set_ylabel('Amount')
 
     plt.show()
+
+def plot_throughput_simple(filepath=None, sim_directory='./simulation_data', more_filepaths=None, progression_view=False):
+    def get_throughput_prefix(tw):
+        throughput_prefix = {1000: 'Kbps', 100000: 'Mbps', 1000000000: 'Gbps'}
+        for twp in throughput_prefix.keys():
+            if 100 < (tw/twp) < 1000:
+                return (twp, throughput_prefix[twp])
+        # If list doesnt work just return the Gbps
+        return (1000000, 'Mbps')
+
+    plt.style.use('fivethirtyeight')
+    fig, ax = plt.subplots()
+
+    if more_filepaths:
+        if progression_view:
+            # Here is progression view which shows the change in throughputs
+            # TODO: Ensure there is at least 3 different files
+            throughput_movement = []
+            for filepath in more_filepaths:
+                with open(filepath, mode='r') as csvfile:
+                    reader = csv.reader(csvfile, delimiter=',')
+                    for row in reader:
+                        if 'throughput_value' in row[0]:
+                            throughput_movement.append(float(row[1])/8)
+            plt.plot(more_filepaths, throughput_movement)
+        else:
+            for filepath in more_filepaths:
+                temp_throughput_list = []
+                with open(filepath, mode='r') as csvfile:
+                    reader = csv.reader(csvfile, delimiter=',')
+                    for row in reader:
+                        if 'throughput_list' in row[0]:
+                            temp_throughput_list = [float(d)/8 for d in row[1:]]
+                            plt.plot(temp_throughput_list, label=filepath)
+                            break
+
+        plt.legend()
+        ax.set_title(f'Total Network Through per Time')
+        ax.set_xlabel(f'Tick')
+        ax.set_ylabel(f'bits-per-second')
+
+    else:
+        throughput_prefix = None
+        filepath = get_filepath(filepath, sim_directory)
+        print(f'Collecting throughput data for {filepath}...')
+        with open(filepath, mode='r') as csvfile:
+            reader = csv.reader(csvfile, delimiter=',')
+            for row in reader:
+                if 'throughput_list' in row[0]:
+                    print(f'Plotting throughput per time for {filepath}...')
+                    last_recorded_throughput = float(row[-1])/8
+                    throughput_prefix = get_throughput_prefix(last_recorded_throughput)
+                    throughputs = [float(d)/(8*throughput_prefix[0]) for d in row[1:]]
+                    print(throughputs)
+                    plt.plot(throughputs, label=filepath)
+                    break
+        plt.legend()
+        ax.set_title(f'Total Network Throughput per time')
+        ax.set_xlabel('Ticks')
+        ax.set_ylabel(f'{throughput_prefix[1]}')
+
+    plt.show()
+            
