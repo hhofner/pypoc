@@ -67,7 +67,7 @@ class NetworkData:
         # Value of current packet drop rate
         self.data['packet_drop_rate_value'] = 0
 
-    def data_save_to_file(self, network, filename=None, data_filepath=None):
+    def data_save_to_file(self, network, filename=None, data_filepath=None, config_file=None):
         '''
         Save all metadata to file, as well as all nodes data.
         :param network: PyPocNetwork object
@@ -88,6 +88,8 @@ class NetworkData:
                     writer.writerow([key] + self.data[key])
                 else:
                     writer.writerow([key] + [self.data[key]])
+
+
 
 class PyPocNetwork(nx.Graph):
     '''
@@ -221,47 +223,45 @@ class PyPocNetwork(nx.Graph):
     # Main Loop #######################################################################################
     ###################################################################################################
     def run_main_loop(self, minutes, **kwargs):
-            seconds = minutes * 60
-            ticks = int(seconds / self.step_value)
-            answer = input(f'Please confirm run. {ticks} ticks, ok? ([y]/n) ')
-            if answer == 'n':
-                print('Did not run'); return
-            self.meta.data['start_time_value'] = datetime.now()
-            print(f'~~~~ Running {self.meta.title} for {ticks} time steps ~~~~')
-            for self.tick in tqdm(range(1, ticks+1)):
-                # print(f'\n~~~~ TIME {self.tick} ~~~~\n')
-                for node in self.nodes:
-                    # print(f'---->: {node} :<----')
-                    node.run(self)
+        seconds = minutes * 60
+        ticks = int(seconds / self.step_value)
+        answer = input(f'Please confirm run. {ticks} ticks, ok? ([y]/n) ')
+        if answer == 'n':
+            print('Did not run'); return
+        self.meta.data['start_time_value'] = datetime.now()
+        print(f'~~~~ Running {self.meta.title} for {ticks} time steps ~~~~')
+        for self.tick in tqdm(range(1, ticks+1)):
+            # print(f'\n~~~~ TIME {self.tick} ~~~~\n')
+            for node in self.nodes:
+                # print(f'---->: {node} :<----')
+                node.run(self)
 
-                self.update_channel_loads()
-                self.update_channel_links()
-                self.update_throughput()
+            self.update_channel_loads()
+            self.update_channel_links()
+            self.update_throughput()
 
-            # Postprocessing methods here #
-            self.meta.data['end_time_value'] = datetime.now()
-            self.collect_node_data()
-            self.collect_packet_data()
-            self.meta.data_save_to_file(self)
+        if 'filename' in kwargs.keys():
+            simulation_filename = kwargs['filename']
+        # Postprocessing methods here #
+        self.meta.data['end_time_value'] = datetime.now()
+        self.collect_node_data()
+        self.collect_packet_data()
+        self.meta.data_save_to_file(self, simulation_filename)
 
-            print(f'########### FINISH ###########')
-            print(f'\tGENERATED PACKETS: {Packet.generated_count}')
-            print(f'\tARRIVED PACKETS: {Packet.arrived_count}')
-            print(f'\tDROPPED PACKETS: {Packet.dropped_count}')
-            print(f'\tPACKET LOSS RATE: {Packet.dropped_count/Packet.generated_count}')
-            print(f'\tTIME DIFFERENCE: {self.meta.data["end_time_value"] - self.meta.data["start_time_value"]}')
-            print(f'\tOVERALL THROUGHPUT: {self.meta.data["throughput_value"]/1e3} KBps')
-            
+        print(f'########### FINISH ###########')
+        print(f'\tGENERATED PACKETS: {Packet.generated_count}')
+        print(f'\tARRIVED PACKETS: {Packet.arrived_count}')
+        print(f'\tDROPPED PACKETS: {Packet.dropped_count}')
+        print(f'\tPACKET LOSS RATE: {Packet.dropped_count/Packet.generated_count}')
+        print(f'\tTIME DIFFERENCE: {self.meta.data["end_time_value"] - self.meta.data["start_time_value"]}')
+        print(f'\tOVERALL THROUGHPUT: {self.meta.data["throughput_value"]/1e3} KBps')
 
     ###################################################################################################
     # Main Interface Method ###########################################################################
     ###################################################################################################
     def run_network_with(self, configuration, **kwargs):
         '''
-        :param minutes: Number of minutes to run the simulation for.
-        :param edge_structure: list of edge tuples with bandwidth definition.
-        :param packet_size: packet sizes to be sent.
-        :param **kwargs: any other key-word arguments.
+        #TODO: Documentation
         :return: None
 
         '''
@@ -274,7 +274,7 @@ class PyPocNetwork(nx.Graph):
 
         # Get minutes
         minutes = configuration['global']['minutes']
-        self.run_main_loop(minutes)
+        self.run_main_loop(minutes, **kwargs)
 
 
 if __name__ == '__main__':
