@@ -7,6 +7,7 @@ __author__ = 'Hans Hofner'
 import os
 import csv
 import datetime
+from collections import defaultdict
 
 import numpy as np
 import pandas as pd
@@ -129,7 +130,7 @@ def plot_packet_simple(filepath=None, sim_directory='./simulation_data', more_fi
     
     plt.show()
 
-def plot_queue_simple(filepath=None, sim_directory='./simulation_data', more_filepaths=None, max_plots=1, restrained_time=False):
+def plot_queue_simple(filepath=None, sim_directory='./simulation_data', more_filepaths=None, restrained_time=False):
     plt.style.use('fivethirtyeight')
     fig, ax = plt.subplots()
 
@@ -159,24 +160,32 @@ def plot_queue_simple(filepath=None, sim_directory='./simulation_data', more_fil
         ax.set_ylabel('Amount')
                     
     else:
-        ''' Singular plotting '''
+        ''' Singular (Simulation) plotting '''
         filepath = get_filepath(filepath, sim_directory) # Get most recent
+        print(f'Plotting for {filepath}')
         times_plotted = 0
+        node_qlength = defaultdict(list)
         with open(filepath, mode='r') as csvfile:
             reader = csv.reader(csvfile, delimiter=',')
             for row in reader:
-                if times_plotted >= max_plots:
-                    break
                 temp_ql_data = []
-                if 'rel_queue' in row[0]:
+                if 'queue_size' in row[0]:
+                    if 'dest-nodes' in row[0] or 'src-nodes' in row[0]:
+                        continue
+                    node_name = row[0].split('_')[3]
                     for data_point in row[1:]:
                         temp_ql_data.append(int(data_point))
-                    ax.plot(temp_ql_data, label=row[0])
-                    times_plotted += 1
+                    node_qlength[node_name].append(temp_ql_data)
+        final_list = []
+        # Go from dict to list
+        for key in node_qlength.keys():
+            temp_df = pd.DataFrame(node_qlength[key])
+            averages = temp_df.mean().tolist()
+            ax.plot(averages, label=key)
         plt.legend()
-        ax.set_title('Number of packets in queues.')
+        ax.set_title('Average Number of packets in queues per time.')
         ax.set_xlabel('Ticks')
-        ax.set_ylabel('Amount')
+        ax.set_ylabel('Average Amount')
 
     plt.show()
 
@@ -242,7 +251,8 @@ def plot_throughput_simple(filepath=None, sim_directory='./simulation_data', mor
     plt.show()
 
 def plot_network_graph(config_filepath=None):
-    #TODO: Make more general 
+    plt.style.use('fivethirtyeight')
+    #TODO: Make more general
     if config_filepath is None:
         config_filepath = 'config.toml'
 
