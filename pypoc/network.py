@@ -90,7 +90,6 @@ class NetworkData:
                     writer.writerow([key] + [self.data[key]])
 
 
-
 class PyPocNetwork(nx.Graph):
     '''
     PyPocNetwork object that manages
