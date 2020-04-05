@@ -213,8 +213,7 @@ def plot_throughput_simple(filepath=None, sim_directory='./simulation_data', mor
                             break
 
         plt.legend()
-        ax.set_title(f'Total Network Through per Time')
-        ax.set_xlabel(f'Tick')
+        ax.set_title(f'Network Throughput')
         ax.set_ylabel(f'bits-per-second')
 
     else:

@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 
 __author__ = 'Hans Hofner'
 
+
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--plot', action='store_true', help='Plot most recent simulation run or passed .csv file.')
@@ -22,7 +23,7 @@ parser.add_argument('--throughput', action='store_true', help='Plot the throughp
 parser.add_argument('--progression', default=False, action='store_true')
 parser.add_argument('--datafile', nargs='*', help='Data files to plot.')
 
-parser.add_argument('--run', action='store_true', help='Title of simulation run.')
+parser.add_argument('--run', action='store_true', help='Run a simulation.')
 parser.add_argument('--config', default='config.toml', help='Specific configuration file, optional.')
 
 args = parser.parse_args()
@@ -35,9 +36,8 @@ if args.run:
     # Create simulation data file
     data_filename = f'{configuration["title"]}_{datetime.now().strftime("%d%b%y_%H_%M_%S")}.csv'
     Path('./simulation_data/'+data_filename).touch()
-
+    
     new = network.PyPocNetwork()
-
     new.run_network_with(configuration, **{'filename': data_filename})
 elif args.plot:
     # TODO: Distribute plotting actions -- if more than one (other than all) are speicifed, plot them.
