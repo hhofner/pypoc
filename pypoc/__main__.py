@@ -21,6 +21,7 @@ parser.add_argument('--queue', action='store_true', help='Plot analysis of numbe
 parser.add_argument('--packets', action='store_true', help='Plot generated/arrived/dropped packets bar chart.')
 parser.add_argument('--throughput', action='store_true', help='Plot the throughput of file(s).')
 parser.add_argument('--progression', default=False, action='store_true')
+parser.add_argument('--topology', action='store_true', help='Visual plot of topology.')
 parser.add_argument('--datafile', nargs='*', help='Data files to plot.')
 
 parser.add_argument('--run', action='store_true', help='Run a simulation.')
@@ -36,7 +37,7 @@ if args.run:
     # Create simulation data file
     data_filename = f'{configuration["title"]}_{datetime.now().strftime("%d%b%y_%H_%M_%S")}.csv'
     Path('./simulation_data/'+data_filename).touch()
-    
+
     new = network.PyPocNetwork()
     new.run_network_with(configuration, **{'filename': data_filename})
 elif args.plot:
@@ -58,3 +59,6 @@ elif args.plot:
             plotter.plot_throughput_simple(more_filepaths=args.datafile, progression_view=args.progression)
         else:
             plotter.plot_throughput_simple()
+
+    elif args.topology:
+        plotter.plot_network_graph(configuration)
