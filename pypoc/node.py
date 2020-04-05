@@ -276,6 +276,9 @@ class Node:
         # the destination from next_hop -- for now assume they can
         return Packet(path, network.tick, size=self.packet_size)
 
+    def set_name(self, name_of_node):
+        self.name = name_of_node
+
     def __hash__(self):
         return self.id
 
@@ -290,7 +293,7 @@ class Node:
             t = 'rel'
         elif self.node_type == 2:
             t = 'dest'
-        return f'node_{self.id}_{t}'
+        return f'node_{self.id}_{t}_{self.name}'
 
     def __repr__(self):
         return f'(Node id:{self.id},t:{self.node_type})'
