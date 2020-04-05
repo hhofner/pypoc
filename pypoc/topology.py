@@ -35,6 +35,7 @@ class Topology:
                                           packet_size=packet_size,
                                           gen_rate=parameters['generation-rate'],
                                           max_buffer_size=parameters['buffer-size'])
+                new_node.set_name(node)
                 self.node_dict[node].append(new_node)
 
         # Build connections
