@@ -11,7 +11,10 @@ import datetime
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import networkx as nx
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+from topology import Topology
 
 def get_filepath(filepath=None, sim_directory='./simulation_data'):
     if filepath is None:
@@ -237,4 +240,33 @@ def plot_throughput_simple(filepath=None, sim_directory='./simulation_data', mor
         ax.set_ylabel(f'{throughput_prefix[1]}')
 
     plt.show()
-            
+
+def plot_network_graph(config_filepath=None):
+    #TODO: Make more general 
+    if config_filepath is None:
+        config_filepath = 'config.toml'
+
+    new = Topology(config_filepath)
+    temp_graph = nx.Graph(new.topology)
+    node_colors = []
+    for node in temp_graph.nodes:
+        if node.name == 'src-nodes':
+            node_colors.append('blue')
+        if node.name == 'dest-nodes':
+            node_colors.append('red')
+        if node.name == 'base-stations':
+            node_colors.append('yellow')
+        if node.name == 'uav-base-stations':
+            node_colors.append('green')
+        if node.name == 'leo-satellites':
+            node_colors.append('brown')
+    nx.draw(temp_graph, node_color=node_colors)
+
+    patches = []
+    patches.append(mpatches.Patch(color='blue', label='Source UE\'s'))
+    patches.append(mpatches.Patch(color='red', label='Destination UE\'s'))
+    patches.append(mpatches.Patch(color='yellow', label='Base Station\'s'))
+    patches.append(mpatches.Patch(color='green', label='UAV Base Station\'s'))
+    patches.append(mpatches.Patch(color='brown', label='LEO Satellite\'s'))
+    plt.legend(handles=patches)
+    plt.show()
