@@ -37,6 +37,16 @@ def get_filepath(filepath=None, sim_directory='./simulation_data'):
         if not os.path.isfile(filepath):
             raise Exception(f'`{filepath}` is not a valid filepath.')
 
+def get_datafiles_from_directory(directory_path):
+    ''' Fetch all CSV files from the directory'''
+    datafiles = []
+    for file in os.listdir(directory_path):
+        if os.path.isfile(os.path.join(file, directory_path)) and file[-3:] == 'csv':
+            datafiles.append(os.path.join(file, directory_path))
+
+    return datafiles
+
+
 def plot_all(filepath=None, sim_directory='./simulation_data'):
     filepath = get_filepath(filepath, sim_directory)
 
@@ -202,9 +212,13 @@ def plot_throughput_simple(filepath=None, sim_directory='./simulation_data', mor
     fig, ax = plt.subplots()
 
     if more_filepaths:
-        if progression_view:
-            # Here is progression view which shows the change in throughputs
-            # TODO: Ensure there is at least 3 different files
+        if progression_view: # Progression view shows the change in throughputs
+            if os.path.isdir(more_filepaths):
+                more_filepaths = get_datafiles_from_directory(more_filepaths)
+            else:
+                if len(more_filepaths) < 3:
+                    raise Exception('Please provide 3 or more files for progression view of throughput.')
+
             throughput_movement = []
             for filepath in more_filepaths:
                 with open(filepath, mode='r') as csvfile:
