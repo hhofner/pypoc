@@ -85,6 +85,12 @@ class Topology:
 
         self.topology = edge_list
 
+    def __repr__(self):
+        s = ''
+        for edge in self.topology:
+            s += str(edge) + '\n'
+        
+        return s
 
 def distance(node1, node2):
     a = np.array(node1.position)
