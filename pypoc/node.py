@@ -115,7 +115,7 @@ class Node:
         self.wait_queue = []
         self.queue = deque()
 
-        if not isinstance(node_type, int):  
+        if not isinstance(node_type, int):
             raise TypeError(f'Invalid type for Node.node_type {self.node_type}')
         self.node_type = node_type
         self.time = 0
@@ -129,23 +129,6 @@ class Node:
     @abstractmethod
     def transmit(self, network):
         pass
-
-    def transmit_limited(self, network, count):
-        '''
-        Transmit a limited number of times, based on the passed
-        count variable.
-
-        :param count: number of packets to transmit
-        '''
-        try:
-            now_count = self.transmitting_count
-        except:
-            self.transmitting_count = 0
-            now_count = self.transmitting_count
-
-        if now_count < count:
-            self.transmit(network)
-            self.transmitting_count += 1
 
     def relay(self, network):
         '''
