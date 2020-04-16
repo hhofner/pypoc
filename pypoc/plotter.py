@@ -64,7 +64,7 @@ def plot_all(filepath=None, sim_directory='./simulation_data'):
 
     with open(filepath, mode='r') as csvfile:
         reader = csv.reader(csvfile, delimiter=',')
-        
+
         number_of_queue_plots = 10
 
         for row in reader:
@@ -106,9 +106,9 @@ def plot_packet_simple(filepath=None, sim_directory='./simulation_data', more_fi
                 if 'packet_arrive_value' in row[0]:
                     arrive_value = int(row[1])
                     bars['Arrived'] = arrive_value
-            
+
             ax.bar(bars.keys(), bars.values(), color=['r', 'g', 'b'])
-    
+
     # Plot multiple
     else:
         generated_values = []
@@ -127,7 +127,7 @@ def plot_packet_simple(filepath=None, sim_directory='./simulation_data', more_fi
                     if 'packet_arrive_value' in row[0]:
                         a_val = int(row[1])
                         arrived_values.append(a_val)
-        
+
         width = 0.55
         indices = np.arange(len(generated_values))
         plt.bar(indices, generated_values, width=width, color='b', label='Total packets.')
@@ -137,7 +137,7 @@ def plot_packet_simple(filepath=None, sim_directory='./simulation_data', more_fi
         ax.set_title('Packet Information for Multiple Simulations')
         plt.xticks(indices, more_filepaths)
         plt.legend()
-    
+
     plt.show()
 
 def plot_queue_simple(filepath=None, sim_directory='./simulation_data', more_filepaths=None, restrained_time=False):
@@ -168,7 +168,7 @@ def plot_queue_simple(filepath=None, sim_directory='./simulation_data', more_fil
         ax.set_title('Average number of packets for all relay nodes per time.')
         ax.set_xlabel('Ticks')
         ax.set_ylabel('Amount')
-                    
+
     else:
         ''' Singular (Simulation) plotting '''
         filepath = get_filepath(filepath, sim_directory) # Get most recent
@@ -271,7 +271,7 @@ def plot_network_graph(config_filepath=None):
         config_filepath = 'config.toml'
 
     new = Topology(config_filepath)
-    temp_graph = nx.Graph(new.topology)
+    temp_graph = nx.DiGraph(new.topology)
     node_colors = []
     for node in temp_graph.nodes:
         if node.name == 'src-nodes':
@@ -284,7 +284,7 @@ def plot_network_graph(config_filepath=None):
             node_colors.append('green')
         if node.name == 'leo-satellites':
             node_colors.append('brown')
-    nx.draw(temp_graph, node_color=node_colors)
+    nx.draw(temp_graph, node_color=node_colors, arrows=True)
 
     patches = []
     patches.append(mpatches.Patch(color='blue', label='Source UE\'s'))
