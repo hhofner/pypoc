@@ -48,7 +48,7 @@ class NetworkData:
 
         # Current total network throughput value.
         self.data['throughput_value'] = 0
-        
+
         # Current step value for one `tick`
         self.data['step_value'] = 0
 
@@ -90,7 +90,7 @@ class NetworkData:
                     writer.writerow([key] + [self.data[key]])
 
 
-class PyPocNetwork(nx.Graph):
+class PyPocNetwork(nx.DiGraph):
     '''
     PyPocNetwork object that manages
     '''
@@ -113,7 +113,7 @@ class PyPocNetwork(nx.Graph):
         self.step_value = self.packet_size/highest_bandwidth
         for node in self.nodes:
             node.step_value = self.step_value
-        
+
         self.meta.data['step_value'] = self.step_value
 
     #TODO:
@@ -125,12 +125,16 @@ class PyPocNetwork(nx.Graph):
 
     def _find_highest_bandwidth(self):
         highest = None
-        for edge in self.edges:
-            v, u = edge
-            if highest is None:
-               highest = self[u][v]['Bandwidth']
-            elif self[u][v]['Bandwidth'] > highest:
-                highest = self[u][v]['Bandwidth']
+        for edge in self.edges.data():
+            try:
+                bandwidth = edge[2]['Bandwidth']
+            except KeywordError:
+                print(f'Could not find Bandwidth edge attribute for edge {e}')
+            else:
+                if highest is None:
+                    highest = bandwidth
+                elif bandwidth > highest:
+                    highest = bandwidth
 
         return highest
 
@@ -183,7 +187,7 @@ class PyPocNetwork(nx.Graph):
                     self.meta.data[f'{packet}_path'] = packet.path_nodes['past']
                     self.meta.data[f'{packet}_born_tick'] = packet.born_tick
                     self.meta.data[f'{packet}_died_tick'] = packet.died_tick
-        
+
         self.meta.data['packet_drop_value'] = Packet.dropped_count
         self.meta.data['packet_arrive_value'] = Packet.arrived_count
         self.meta.data['packet_generated_value'] = Packet.generated_count
