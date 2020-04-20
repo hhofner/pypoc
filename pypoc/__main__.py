@@ -1,5 +1,5 @@
 '''
-Main entry script for PyPoc. Reads the config and 
+Main entry script for PyPoc. Reads the config and
 creates & runs a Network.
 '''
 import network
@@ -30,10 +30,11 @@ parser.add_argument('--config', default='config.toml', help='Specific configurat
 args = parser.parse_args()
 
 configuration = toml.load(args.config)
+title = configuration["title"]
 
 if args.run:
     # Copy file
-    shutil.copyfile(args.config, f'./simulation_data/{configuration["title"]}_{datetime.now().strftime("%d%b%y_%H_%M_%S")}_config.toml')
+    shutil.copyfile(args.config, f'./simulation_data/{title}_{datetime.now().strftime("%d%b%y_%H_%M_%S")}_config.toml')
     # Create simulation data file
     data_filename = f'{configuration["title"]}_{datetime.now().strftime("%d%b%y_%H_%M_%S")}.csv'
     Path('./simulation_data/'+data_filename).touch()
