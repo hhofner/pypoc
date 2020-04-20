@@ -78,7 +78,7 @@ class Topology:
             for node in self.node_dict[node_key]:
                 for vn in viable_connections:
                     for node2 in self.node_dict[vn]:
-                        if is_distance_ok(node, node2):
+                        if is_distance_ok(node, node2) and not node is node2:
                             new_connection = (node, node2, {'Bandwidth': downlink_bandwidth_for[node_key], 'TickValue': None})
                             edge_list.append(new_connection)
 
