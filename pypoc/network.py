@@ -24,7 +24,7 @@ import seaborn as sns
 import pandas as pd
 import numpy as np
 import toml
-from tqdm import tqdm
+from tqdm import tqdm # Progress Bar
 from scipy.spatial import distance
 from topology import Topology
 from node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode, RestrictedNode
@@ -109,34 +109,26 @@ class PyPocNetwork(nx.DiGraph):
         network based on bandwidth and packet size, and then
         updates the value for all nodes.
         '''
-        highest_bandwidth = self._find_highest_bandwidth()
+        highest_bandwidth = None
+        for edge in self.edges.data():
+            try:
+                bandwidth = edge[2]['Bandwidth']
+            except KeyError:
+                print(f'Could not find Bandwidth edge attrbitue for edge {e}')
+            else:
+                if highest_bandwidth is None:
+                    highest_bandwidth = edge[2]['Bandwidth']
+                elif edge[2]['Bandwidth'] > highest_bandwidth:
+                    highest_bandwidth = edge[2]['Bandwidth']
+
+                # Set the edges bandwidth value
+                edge[2]['TickValue'] = self.packet_size/edge[2]['Bandwidth']
+
         self.step_value = self.packet_size/highest_bandwidth
         for node in self.nodes:
             node.step_value = self.step_value
 
         self.meta.data['step_value'] = self.step_value
-
-    #TODO:
-    def _update_step_value(self, value=None):
-        '''
-        Updates the step value.
-        '''
-        pass
-
-    def _find_highest_bandwidth(self):
-        highest = None
-        for edge in self.edges.data():
-            try:
-                bandwidth = edge[2]['Bandwidth']
-            except KeywordError:
-                print(f'Could not find Bandwidth edge attribute for edge {e}')
-            else:
-                if highest is None:
-                    highest = bandwidth
-                elif bandwidth > highest:
-                    highest = bandwidth
-
-        return highest
 
     def update_throughput(self):
         try:
