@@ -16,6 +16,7 @@ class Topology:
     def __init__(self, configuration):
         print('Initializing topology configuration...')
         packet_size = configuration['global']['packet-size']
+        area = (configuration['area']['width'], configuration['area']['height'])
 
         self.node_dict = {}  # Dict of TYPE of Nodes (src-node, etc)
         print('Creating node objects...')
@@ -28,7 +29,7 @@ class Topology:
             parameters = configuration['nodes'][node]['params']
 
             # Create nodes
-            for _ in range(count):
+            for c in range(count):
                 new_node = RestrictedNode(node_type=node_type,
                                           step_value=0,
                                           mobility_model=movement,
@@ -36,6 +37,7 @@ class Topology:
                                           gen_rate=parameters['generation-rate'],
                                           max_buffer_size=parameters['buffer-size'])
                 new_node.set_name(node)
+                new_node.position = self.get_position(position, area, c)
                 self.node_dict[node].append(new_node)
 
         # Build connections
@@ -47,7 +49,6 @@ class Topology:
         Create a list of tuples that represent a link between two nodes.
         The parameters of the links are represented as a dictionary. Sets the
         `self.topology` variable.
-
         :param configuration: dict, topology configuration
         :return: None
         '''
@@ -56,7 +57,7 @@ class Topology:
             raise Exception('No available nodes to make links.')
 
         def is_distance_ok(node, node2):
-            if distance(node, node2) < 1:
+            if distance(node, node2) < 1000000:  #TODO: Distance!!!! Change!!! PLS
                 return True
             else:
                 return False
@@ -83,6 +84,23 @@ class Topology:
                             edge_list.append(new_connection)
 
         self.topology = edge_list
+
+    def get_position(self, p_arg, area, count):
+        if p_arg == 'ue-random':
+            return self._ue_random(area)
+        elif p_arg == 'none':
+            return (0,0,0)
+        else:
+            x= int(p_arg[count][0])
+            y= int(p_arg[count][1])
+            z= int(p_arg[count][2])
+            return (x,y,z)
+
+    def _ue_random(self, area):
+        x, y = np.random.normal(0, size=(2,))
+        x = x*area[0]
+        y = y*area[1]
+        return (x, y, 0)
 
     def __repr__(self):
         s = ''
