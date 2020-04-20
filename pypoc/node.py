@@ -11,8 +11,11 @@ import numpy as np
 import math
 import random
 import itertools
+import logging
 
 import networkx as nx
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 class Packet:
@@ -118,7 +121,7 @@ class Node:
         if not isinstance(node_type, int):
             raise TypeError(f'Invalid type for Node.node_type {self.node_type}')
         self.node_type = node_type
-        self.time = 0
+        self.time = 1
         self.packet_size = 1
         self.step_value = step_value
 
@@ -175,8 +178,6 @@ class Node:
 
         self.update_queue()
         self.update_data()
-
-        self.time += 1
 
     def update_dest_node_list(self, network, dest_ids=None):
         if not dest_ids:
@@ -315,8 +316,6 @@ class MovingNode(Node):
         self.update_queue()
         self.update_data()
 
-        self.time += 1
-
     def move(self, network):
         if self.is_moving:
             try:
@@ -330,69 +329,91 @@ class MovingNode(Node):
 class VaryingTransmitNode(MovingNode):
     def __init__(self, node_type, step_value, mobility_model, packet_size, gen_rate):
         super().__init__(node_type, step_value, mobility_model)
-        self.neighbor_wait_time = {}  # Counter for every neighor when the next step to transmit is
-        self.neighbors = {}  # Neighbors and the corresponding bandwidths
+        self.is_generating = False
+        self.next_gen_time = 0
 
         self.neighbor = None
-        self.transmit_counter = None
-        self.gen_step = None  # The time it takes to transmit next
-
         self.packet_size = packet_size
         self.gen_rate = gen_rate
         if self.node_type == 0:
             if not isinstance(gen_rate, int):
                 raise TypeError(f'Invalid type for Node.gen_rate, {gen_rate}: {type(gen_rate)}')
+        self.neighor_counter_updated = False
+        self.total_generated_bytes = 0
 
-    def transmit(self, network):
-        if (self.packet_size/self.gen_rate) < self.step_value:
-            raise Exception(f'Generation Rate is too large: {self.gen_rate}')
+    def _generate(self, network):
+        '''
+        Generate the number of packets (and subsequently number of ticks) to be sent
+        later in time.
+        '''
+        if network.tick > self.next_gen_time:
+            number_of_packets = int(self.gen_rate / self.packet_size)
+            if number_of_packets < 1:
+                raise Exception(f'Packets larger than gen rate still need to be implemented.')
+            else:
+                temp_generated_bytes = 0
+                for _ in range(number_of_packets):
+                    fresh_packet = self.create_packet(network, next(self.neighbor))
+                    temp_generated_bytes += fresh_packet.size
+                    self.queue.append(fresh_packet)
+                self.total_generated_bytes += temp_generated_bytes
 
-        # Intialize neighbors
-        if len(self.neighbors) == 0:
-            self.update_neighbor_counter(network)
+            self.next_gen_time += 1/network.step_value
 
-        # First loop ever
-        if self.transmit_counter is None:
-            # packet = self.create_packet(network, next(self.neighbor))
-            packet = self.create_packet(network)
-            if packet is None:
-                return
-            packet.next_node.receive(network, packet)
-            self.data['transmited_packets'].append(packet)
-
-            self.transmit_counter = self.gen_step
-
-        elif self.transmit_counter >= 1:
-            for _ in range(int(self.transmit_counter)):
-                # packet = self.create_packet(network, next(self.neighbor))
-                packet = self.create_packet(network)
-                if packet is None:
-                    return
-                packet.next_node.receive(network, packet)
-                self.data['transmited_packets'].append(packet)
-                self.transmit_counter -= 1
-                # print(f'{self} transmitted a packet.')
-
-            self.transmit_counter += self.gen_step
+    #TODO: Add logging and metadata collection
+    def _transmit(self, network):
+        try:
+            packet = self.queue.pop()
+        except IndexError:
+            pass
         else:
-            self.transmit_counter += max(np.random.normal(self.gen_step), self.gen_step)
-            # self.transmit_counter += self.gen_step
+            packet.next_node.receive(network, packet)
+
+    # TODO: Consider different bandwidths
+    def transmit(self, network):
+        if not self.neighor_counter_updated:
+            self.update_neighbor_counter(network)  #TODO: Change to only call once
+        self._generate(network)
+        self._transmit(network)
 
     def update_neighbor_counter(self, network):
-        for neighbor in nx.neighbors(network, self):
-            channel_bandwidth = network[self][neighbor]['Bandwidth']
-            self.neighbor_wait_time[neighbor] = 0
-            self.neighbors[neighbor] = self.packet_size / channel_bandwidth
-
-        self.neighbor = (n for n in itertools.cycle(self.neighbors.keys()))
-        self.gen_step = (self.gen_rate/self.packet_size) * self.step_value
+        self.neighor_counter_updated = True
+        self.neighbor = (n for n in itertools.cycle(nx.neighbors(network, self)))
 
 
+#TODO: Documentation!!!!!!!!
 class VaryingRelayNode(VaryingTransmitNode):
+    def __init__(self, node_type, step_value, mobility_model, packet_size, gen_rate):
+        super().__init__(node_type, step_value, mobility_model, packet_size, gen_rate)
+
+        self.neighbor_ok_list_updated = False  # Next tick its ok to send
+        self.neighbor_edge_list_updated = False
+
     def relay(self, network):
+        if not self.neighbor_ok_list_updated:
+            self.update_neighbor_ok_list(network)
+
+        if not self.neighbor_edge_list_updated:
+            self.update_neighbor_edge_list(network)
+
         if len(self.queue) > 0:
             packet = self.queue.pop()
-            packet.next_node.receive(network, packet)
+
+            if network.tick >= self.next_ok_tick_for[packet.next_node]:
+                # Update next ok tick
+                self.next_ok_tick_for[packet.next_node] += self.edge_tick_val_for[packet.next_node] / network.step_value
+
+                packet.next_node.receive(network, packet)
+            else:
+                self.queue.append(packet)  #TODO: Is this ok? Need to check!!
+
+    def update_neighbor_ok_list(self, network):
+        self.next_ok_tick_for = {neighbor:0 for neighbor in nx.neighbors(network, self)}
+        self.neighbor_ok_list_updated = True
+
+    def update_neighbor_edge_list(self, network):
+        self.edge_tick_val_for = {e[1]:e[2]['TickValue'] for e in network.edges.data() if e[0] is self}
+        self.neighbor_edge_list_updated = True
 
 
 class RestrictedNode(VaryingRelayNode):
