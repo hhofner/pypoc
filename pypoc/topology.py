@@ -16,7 +16,7 @@ class Topology:
     def __init__(self, configuration):
         print('Initializing topology configuration...')
         packet_size = configuration['global']['packet-size']
-        
+
         self.node_dict = {}  # Dict of TYPE of Nodes (src-node, etc)
         print('Creating node objects...')
         for node in configuration['nodes'].keys():
@@ -45,8 +45,8 @@ class Topology:
     def create_distance_links(self, configuration):
         '''
         Create a list of tuples that represent a link between two nodes.
-        The parameters of the links are represented as a dictionary. Sets the 
-        `self.topology` variable. 
+        The parameters of the links are represented as a dictionary. Sets the
+        `self.topology` variable.
 
         :param configuration: dict, topology configuration
         :return: None
@@ -71,7 +71,6 @@ class Topology:
         for node in configuration['nodes'].keys():
             connections_for[node] = configuration['nodes'][node]['connected-to']
             downlink_bandwidth_for[node] = configuration['nodes'][node]['params']['downlink-bandwidth']
-            uplink_bandwidth_for[node] = configuration['nodes'][node]['params']['uplink-bandwidth']
 
         # Start making connections
         for node_key in self.node_dict:
@@ -80,7 +79,7 @@ class Topology:
                 for vn in viable_connections:
                     for node2 in self.node_dict[vn]:
                         if is_distance_ok(node, node2):
-                            new_connection = (node, node2, {'Bandwidth': downlink_bandwidth_for[node_key]})
+                            new_connection = (node, node2, {'Bandwidth': downlink_bandwidth_for[node_key], 'TickValue': None})
                             edge_list.append(new_connection)
 
         self.topology = edge_list
@@ -89,7 +88,7 @@ class Topology:
         s = ''
         for edge in self.topology:
             s += str(edge) + '\n'
-        
+
         return s
 
 def distance(node1, node2):
