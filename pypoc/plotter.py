@@ -273,7 +273,12 @@ def plot_network_graph(config_filepath=None):
     new = Topology(config_filepath)
     temp_graph = nx.DiGraph(new.topology)
     node_colors = []
+    positions= {}
+    print(temp_graph.nodes)
+    input('ooooi')
     for node in temp_graph.nodes:
+        positions[node] = [int(node.position[0]), int(node.position[1])]
+        input(positions[node])
         if node.name == 'src-nodes':
             node_colors.append('blue')
         if node.name == 'dest-nodes':
@@ -284,7 +289,7 @@ def plot_network_graph(config_filepath=None):
             node_colors.append('green')
         if node.name == 'leo-satellites':
             node_colors.append('brown')
-    nx.draw(temp_graph, node_color=node_colors, arrows=True)
+    nx.draw_networkx(temp_graph, node_color=node_colors, pos=positions, arrows=True)
 
     patches = []
     patches.append(mpatches.Patch(color='blue', label='Source UE\'s'))
