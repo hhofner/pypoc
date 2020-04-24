@@ -133,29 +133,9 @@ class Node:
     def transmit(self, network):
         pass
 
+    @abstractmethod
     def relay(self, network):
-        '''
-        Relay one packet from queue onto the next node.
-
-        :param network: Networkx Graph instance that has all info on network.
-        '''
-        to_relay_packets = []
-        for packet in self.queue:
-            can_send, edge = network.can_send_through('Channel',
-                                                      self,
-                                                      packet.next_node,
-                                                      packet.size,
-                                                      self.edges[packet.next_node])
-            if can_send:
-                to_relay_packets.append(packet)
-                self.edges[packet.next_node] = edge
-            else:
-                self.edges[packet.next_node] = edge
-
-        for p in to_relay_packets:
-            popped_packet = self.queue.pop(self.queue.index(p))
-            popped_packet.next_node.receive(network, popped_packet)
-            self.data['relayed_packets'].append(popped_packet)
+        pass
 
     def receive(self, network, received_packet):
         '''
@@ -360,7 +340,6 @@ class VaryingTransmitNode(MovingNode):
 
             self.next_gen_time += 1/network.step_value
 
-    #TODO: Add logging and metadata collection
     def _transmit(self, network):
         try:
             packet = self.queue.pop()
@@ -368,6 +347,7 @@ class VaryingTransmitNode(MovingNode):
             pass
         else:
             packet.next_node.receive(network, packet)
+            self.data['transmitted_packets'].append(packet)
 
     # TODO: Consider different bandwidths
     def transmit(self, network):
@@ -404,6 +384,7 @@ class VaryingRelayNode(VaryingTransmitNode):
                 self.next_ok_tick_for[packet.next_node] += self.edge_tick_val_for[packet.next_node] / network.step_value
 
                 packet.next_node.receive(network, packet)
+                self.data['relayed_packets'].append(packet)
             else:
                 self.queue.append(packet)  #TODO: Is this ok? Need to check!!
 
