@@ -11,6 +11,9 @@ import toml
 from node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode, RestrictedNode
 from mobility import ellipse_movement, straight_line
 
+seed = 62
+np.random.seed(seed)
+
 
 class Topology:
     def __init__(self, configuration):
@@ -57,10 +60,18 @@ class Topology:
             raise Exception('No available nodes to make links.')
 
         def is_distance_ok(node, node2):
-            if distance(node, node2) < 1000000:  #TODO: Distance!!!! Change!!! PLS
+            if node.node_type == node2.node_type:
                 return True
-            else:
-                return False
+
+            if node.node_type == 1 or node2.node_type == 1:
+                if distance(node, node2) < 0.8:  #TODO: Distance!!!! Change!!! PLS
+                    return True
+
+            if node.node_type == 2 or node2.node_type == 2:
+                if distance(node, node2) < 2000:
+                    return True
+
+            return False
 
         print('Creating links between nodes...')
         edge_list = []
@@ -97,9 +108,9 @@ class Topology:
             return (x,y,z)
 
     def _ue_random(self, area):
-        x, y = np.random.normal(0, size=(2,))
-        x = x*area[0]
-        y = y*area[1]
+        x, y = np.random.normal(size=(2,))
+        x = x
+        y = y
         return (x, y, 0)
 
     def __repr__(self):
