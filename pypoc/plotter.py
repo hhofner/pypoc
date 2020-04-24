@@ -6,6 +6,7 @@ __author__ = 'Hans Hofner'
 
 import os
 import csv
+import time
 import datetime
 from collections import defaultdict
 
@@ -145,25 +146,29 @@ def plot_queue_simple(filepath=None, sim_directory='./simulation_data', more_fil
     fig, ax = plt.subplots()
 
     if more_filepaths:
-        ''' Multiple plotting '''
-        # First, collect all queue_l for one file
-        #   calculate the average for all at every point
-        # Then plot
-        for filepath in more_filepaths:
-            temp_data = []
-            # Collect data
-            with open(filepath, mode='r') as csvfile:
-                reader = csv.reader(csvfile, delimiter=',')
-                for row in reader:
-                    temp_row_data = []
-                    if 'rel_queue' in row[0]:
-                        for data_point in row[1:]:
-                            temp_row_data.append(int(data_point))
-                        temp_data.append(temp_row_data)
-            # Turn into DataFrame and compress columns into averages
-            queue_df = pd.DataFrame(temp_data)
-            averages = queue_df.mean().tolist()
-            ax.plot(averages, label=filepath)
+        for file_set in more_filepaths:
+            if file_set is None:
+                continue
+            ''' Multiple plotting '''
+            # First, collect all queue_l for one file
+            #   calculate the average for all at every point
+            # Then plot
+            for filepath in file_set:
+                temp_data = []
+                # Collect data
+                with open(filepath, mode='r') as csvfile:
+                    print(f'{">" * 30} Parsing file: {filepath} {">" * 30}')
+                    reader = csv.reader(csvfile, delimiter=',')
+                    for row in reader:
+                        temp_row_data = []
+                        if 'rel' in row[0] and 'queue' in row[0]:
+                            for data_point in row[1:]:
+                                temp_row_data.append(int(data_point))
+                            temp_data.append(temp_row_data)
+                # Turn into DataFrame and compress columns into averages
+                queue_df = pd.DataFrame(temp_data)
+                averages = queue_df.mean().tolist()
+                ax.plot(averages, label=filepath)
         plt.legend()
         ax.set_title('Average number of packets for all relay nodes per time.')
         ax.set_xlabel('Ticks')
@@ -213,22 +218,39 @@ def plot_throughput_simple(filepath=None, sim_directory='./simulation_data', mor
 
     if more_filepaths:
         if progression_view: # Progression view shows the change in throughputs
-            if os.path.isdir(more_filepaths):
-                more_filepaths = get_datafiles_from_directory(more_filepaths)
-            else:
-                if len(more_filepaths) < 3:
-                    raise Exception('Please provide 3 or more files for progression view of throughput.')
+            for filepath_set in more_filepaths:
+                
+                if filepath_set is None:
+                    continue
 
-            throughput_movement = []
-            for filepath in more_filepaths:
-                with open(filepath, mode='r') as csvfile:
-                    reader = csv.reader(csvfile, delimiter=',')
-                    for row in reader:
-                        if 'throughput_value' in row[0]:
-                            throughput_movement.append(float(row[1])/8)
-            plt.plot(more_filepaths, throughput_movement)
+                # Check if its a directory
+                if isinstance(filepath_set, str):
+                    if os.path.isdir(filepath_set):
+                        filepath_set = get_datafiles_from_directory(filepath_set)
+                    else:
+                        raise Exception(f'Not a dir: {filepath_set}')
+
+                throughput_movement = []
+                x_numbers = []; start=30
+                for filepath in filepath_set:
+                    print(f'{">"*30} Parsing File {filepath} {">"*30}')
+                    with open(filepath, mode='r') as csvfile:
+                        reader = csv.reader(csvfile, delimiter=',')
+                        for row in reader:
+                            try:
+                                if 'throughput_value' in row[0]:
+                                    throughput_movement.append(float(row[1])/8)
+                                    break
+                            except IndexError:
+                                input(f"IndexError for {filepath}: {row}")
+                                raise
+
+                    x_numbers.append(start)
+                    start += 1
+                plt.plot(x_numbers, throughput_movement)
         else:
-            for filepath in more_filepaths:
+            # Only use the first datafile == more_filepaths[0]
+            for filepath in more_filepaths[0]:
                 temp_throughput_list = []
                 with open(filepath, mode='r') as csvfile:
                     reader = csv.reader(csvfile, delimiter=',')
@@ -264,8 +286,102 @@ def plot_throughput_simple(filepath=None, sim_directory='./simulation_data', mor
 
     plt.show()
 
-def plot_network_graph(config_filepath=None):
+def plot_throughputs():
     plt.style.use('fivethirtyeight')
+    fig, ax = plt.subplots()
+
+    dirpath = 'simulation_data/'
+    sim_set = []
+    for i in range(1, 5):
+        filepaths = []
+        for file in os.listdir(dirpath):
+            if f'thu_t{i}' in file or f'thur_t{i}' in file:
+                if '.csv' in file:
+                    filepath = dirpath + file
+                    filepaths.append(filepath)
+        sim_set.append(filepaths)
+    
+    def get_num(x):
+        return int(x.split('__')[1][:x.split('__')[1].index('.')])
+
+    for fileset in sim_set:
+        throughput_movement = []
+        x_numbers = []
+        for filepath in sorted(fileset, key=get_num):
+            print(f'{">" * 15} parsing {filepath} {">" * 15}')
+
+            with open(filepath, mode='r') as csvfile:
+                reader=csv.reader(csvfile)
+                for row in reader:
+                    try:
+                        if 'throughput_value' in row[0]:
+                            throughput_movement.append(float(row[1])/8)
+                            break
+                    except IndexError:
+                        input(f"IndexError for {filepath}: {row}")
+                        raise
+            x_numbers.append(get_num(filepath))
+        plt.plot(x_numbers, throughput_movement, label=f't{sim_set.index(fileset)}')
+    
+    ax.set_title(f'Network Throughput')
+    ax.set_ylabel(f'bits-per-second')
+    plt.legend()
+    plt.show()
+
+def plot_drop_rate():
+    plt.style.use('fivethirtyeight')
+    fig, ax = plt.subplots()
+
+    dirpath = 'i_gr_data/'; print(f'{"#"*25} Plotting from dir {dirpath}!!! {"#"*25}')
+    time.sleep(2)
+
+    sim_set = []
+    for i in range(1, 5):
+        filepaths = []
+        for file in os.listdir(dirpath):
+            if f'thu_t{i}' in file or f'thur_t{i}' in file:
+                if '.csv' in file:
+                    filepath = dirpath + file
+                    filepaths.append(filepath)
+        sim_set.append(filepaths)
+    
+    def get_num(x):
+        return int(x.split('__')[1][:x.split('__')[1].index('.')])
+
+    for fileset in sim_set:
+        drop_rates = []
+        x_numbers = []
+        for filepath in sorted(fileset, key=get_num):
+            print(f'{">" * 15} parsing {filepath} {">" * 15}')
+
+            with open(filepath, mode='r') as csvfile:
+                reader=csv.reader(csvfile)
+                drop_value = None; generated_value = None
+                for row in reader:
+                    try:
+                        if 'packet_drop_value' in row[0]:
+                            drop_value = float(row[1])
+                    except IndexError:
+                        input(f"IndexError for {filepath}: {row}")
+                        raise
+                    try:
+                        if 'packet_generated_value' in row[0]:
+                            generated_value = float(row[1])
+                    except IndexError:
+                        input(f"IndexError for {filepath}: {row}")
+                        raise
+            
+            drop_rates.append((drop_value/generated_value)*100)
+                            
+            x_numbers.append(get_num(filepath))
+        plt.plot(x_numbers, drop_rates, label=f't{sim_set.index(fileset)}')
+    
+    ax.set_title(f'Drop Rate')
+    ax.set_ylabel(f'Percentage %')
+    plt.legend()
+    plt.show()
+
+def plot_network_graph(config_filepath=None):
     #TODO: Make more general
     if config_filepath is None:
         config_filepath = 'config.toml'
@@ -273,23 +389,27 @@ def plot_network_graph(config_filepath=None):
     new = Topology(config_filepath)
     temp_graph = nx.DiGraph(new.topology)
     node_colors = []
+    node_sizes = []
     positions= {}
-    print(temp_graph.nodes)
-    input('ooooi')
     for node in temp_graph.nodes:
-        positions[node] = [int(node.position[0]), int(node.position[1])]
-        input(positions[node])
+        positions[node] = [float(node.position[0]), float(node.position[1])]
         if node.name == 'src-nodes':
             node_colors.append('blue')
+            node_sizes.append(150)
         if node.name == 'dest-nodes':
             node_colors.append('red')
+            node_sizes.append(150)
         if node.name == 'base-stations':
             node_colors.append('yellow')
+            node_sizes.append(450)
         if node.name == 'uav-base-stations':
             node_colors.append('green')
+            node_sizes.append(360)
         if node.name == 'leo-satellites':
             node_colors.append('brown')
-    nx.draw_networkx(temp_graph, node_color=node_colors, pos=positions, arrows=True)
+            node_sizes.append(560)
+    nx.draw_networkx(temp_graph, node_color=node_colors, pos=positions, arrows=True, with_labels=False, node_size=node_sizes)
+    #nx.draw_networkx_nodes(temp_graph, node_color=node_colors, pos=positions, node_size=node_sizes)
 
     patches = []
     patches.append(mpatches.Patch(color='blue', label='Source UE\'s'))
