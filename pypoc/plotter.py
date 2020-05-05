@@ -204,88 +204,6 @@ def plot_queue_simple(filepath=None, sim_directory='./simulation_data', more_fil
 
     plt.show()
 
-def plot_throughput_simple(filepath=None, sim_directory='./simulation_data', more_filepaths=None, progression_view=False):
-    def get_throughput_prefix(tw):
-        throughput_prefix = {1000: 'Kbps', 100000: 'Mbps', 1000000000: 'Gbps'}
-        for twp in throughput_prefix.keys():
-            if 100 < (tw/twp) < 1000:
-                return (twp, throughput_prefix[twp])
-        # If list doesnt work just return the Gbps
-        return (1000000, 'Mbps')
-
-    plt.style.use('fivethirtyeight')
-    fig, ax = plt.subplots()
-
-    if more_filepaths:
-        if progression_view: # Progression view shows the change in throughputs
-            for filepath_set in more_filepaths:
-                
-                if filepath_set is None:
-                    continue
-
-                # Check if its a directory
-                if isinstance(filepath_set, str):
-                    if os.path.isdir(filepath_set):
-                        filepath_set = get_datafiles_from_directory(filepath_set)
-                    else:
-                        raise Exception(f'Not a dir: {filepath_set}')
-
-                throughput_movement = []
-                x_numbers = []; start=30
-                for filepath in filepath_set:
-                    print(f'{">"*30} Parsing File {filepath} {">"*30}')
-                    with open(filepath, mode='r') as csvfile:
-                        reader = csv.reader(csvfile, delimiter=',')
-                        for row in reader:
-                            try:
-                                if 'throughput_value' in row[0]:
-                                    throughput_movement.append(float(row[1])/8)
-                                    break
-                            except IndexError:
-                                input(f"IndexError for {filepath}: {row}")
-                                raise
-
-                    x_numbers.append(start)
-                    start += 1
-                plt.plot(x_numbers, throughput_movement)
-        else:
-            # Only use the first datafile == more_filepaths[0]
-            for filepath in more_filepaths[0]:
-                temp_throughput_list = []
-                with open(filepath, mode='r') as csvfile:
-                    reader = csv.reader(csvfile, delimiter=',')
-                    for row in reader:
-                        if 'throughput_list' in row[0]:
-                            temp_throughput_list = [float(d)/8 for d in row[1:]]
-                            plt.plot(temp_throughput_list, label=filepath)
-                            break
-
-        plt.legend()
-        ax.set_title(f'Network Throughput')
-        ax.set_ylabel(f'bits-per-second')
-
-    else:
-        throughput_prefix = None
-        filepath = get_filepath(filepath, sim_directory)
-        print(f'Collecting throughput data for {filepath}...')
-        with open(filepath, mode='r') as csvfile:
-            reader = csv.reader(csvfile, delimiter=',')
-            for row in reader:
-                if 'throughput_list' in row[0]:
-                    print(f'Plotting throughput per time for {filepath}...')
-                    last_recorded_throughput = float(row[-1])/8
-                    throughput_prefix = get_throughput_prefix(last_recorded_throughput)
-                    throughputs = [float(d)/(8*throughput_prefix[0]) for d in row[1:]]
-                    print(throughputs)
-                    plt.plot(throughputs, label=filepath)
-                    break
-        plt.legend()
-        ax.set_title(f'Total Network Throughput per time')
-        ax.set_xlabel('Ticks')
-        ax.set_ylabel(f'{throughput_prefix[1]}')
-
-    plt.show()
-
 def plot_throughputs():
     plt.style.use('fivethirtyeight')
     fig, ax = plt.subplots()
@@ -387,6 +305,10 @@ def plot_network_graph(config_filepath=None):
         config_filepath = 'config.toml'
 
     new = Topology(config_filepath)
+    if len(new.topology) == 0:
+        print(f'No edges created for this graph.')
+        return
+
     temp_graph = nx.DiGraph(new.topology)
     node_colors = []
     node_sizes = []
@@ -408,7 +330,7 @@ def plot_network_graph(config_filepath=None):
         if node.name == 'leo-satellites':
             node_colors.append('brown')
             node_sizes.append(560)
-    nx.draw_networkx(temp_graph, node_color=node_colors, pos=positions, arrows=True, with_labels=False, node_size=node_sizes)
+    nx.draw_networkx(temp_graph, node_color=node_colors, pos=positions, arrows=True, with_labels=True, node_size=node_sizes)
     #nx.draw_networkx_nodes(temp_graph, node_color=node_colors, pos=positions, node_size=node_sizes)
 
     patches = []
@@ -419,3 +341,44 @@ def plot_network_graph(config_filepath=None):
     patches.append(mpatches.Patch(color='brown', label='LEO Satellite\'s'))
     plt.legend(handles=patches)
     plt.show()
+
+def save_network_graph_image(networkx_ob, filepath, **kwargs):
+
+    plt.clf()
+
+    node_colors = []
+    node_sizes = []
+    positions= {}
+    for node in networkx_ob.nodes:
+        positions[node] = [float(node.position[0]), float(node.position[1])]
+        if node.name == 'src-nodes':
+            node_colors.append('blue')
+            node_sizes.append(150)
+        if node.name == 'dest-nodes':
+            node_colors.append('red')
+            node_sizes.append(150)
+        if node.name == 'base-stations':
+            node_colors.append('yellow')
+            node_sizes.append(450)
+        if node.name == 'uav-base-stations':
+            node_colors.append('green')
+            node_sizes.append(360)
+        if node.name == 'leo-satellites':
+            node_colors.append('brown')
+            node_sizes.append(560)
+    nx.draw_networkx(networkx_ob, node_color=node_colors, pos=positions, arrows=True,
+                     with_labels=True, node_size=node_sizes)
+
+    patches = []
+    patches.append(mpatches.Patch(color='blue', label='Source UE\'s'))
+    patches.append(mpatches.Patch(color='red', label='Destination UE\'s'))
+    patches.append(mpatches.Patch(color='yellow', label='Base Station\'s'))
+    patches.append(mpatches.Patch(color='green', label='UAV Base Station\'s'))
+    patches.append(mpatches.Patch(color='brown', label='LEO Satellite\'s'))
+
+    plt.title(f'Tick {kwargs["tick_val"]}')
+    plt.legend(handles=patches)
+    plt.xlim(-100, 100)
+    plt.ylim(-100, 100)
+    plt.savefig(filepath)
+    # plt.show()
