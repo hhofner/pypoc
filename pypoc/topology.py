@@ -3,16 +3,13 @@ This module provides a class and methods to build the users desired topology.
 The class is populated by reading the configuration file `setup.toml`.
 '''
 
-import itertools
-import random
-import argparse
 import numpy as np
 import toml
 from node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode, RestrictedNode
-from mobility import ellipse_movement, straight_line
+from mobility import MobilityEnum
 
 seed = 62
-np.random.seed(seed)
+np.random.seed(seed)  # Randomizes UE positions
 
 
 class Topology:
@@ -28,7 +25,8 @@ class Topology:
             node_type = configuration['nodes'][node]['type']
             count = configuration['nodes'][node]['count']
             position = configuration['nodes'][node]['position']
-            movement = configuration['nodes'][node]['movement']
+            print(f'Fetching mobility model for {node}')
+            movement = MobilityEnum.get_movement(configuration['nodes'][node]['movement'])
             parameters = configuration['nodes'][node]['params']
 
             # Create nodes
@@ -64,10 +62,10 @@ class Topology:
                 return True
 
             if node.node_type == 1 or node2.node_type == 1:
-                if distance(node, node2) < 0.8:  #TODO: Distance!!!! Change!!! PLS
+                if distance(node, node2) < 50:  #TODO: Distance!!!! Change!!! PLS
                     return True
 
-            if node.node_type == 2 or node2.node_type == 2:
+            if node.name == 'leo-satellites' or node2.name == 'leo-satellites':
                 if distance(node, node2) < 2000:
                     return True
 
@@ -91,7 +89,10 @@ class Topology:
                 for vn in viable_connections:
                     for node2 in self.node_dict[vn]:
                         if is_distance_ok(node, node2) and not node is node2:
-                            new_connection = (node, node2, {'Bandwidth': downlink_bandwidth_for[node_key], 'TickValue': None})
+                            new_connection = (node, node2,
+                                              {'Bandwidth': downlink_bandwidth_for[node_key],
+                                               'TickValue': None,
+                                               })
                             edge_list.append(new_connection)
 
         self.topology = edge_list
@@ -108,9 +109,9 @@ class Topology:
             return (x,y,z)
 
     def _ue_random(self, area):
-        x, y = np.random.normal(size=(2,))
-        x = x
-        y = y
+        x, y = np.random.normal(size=(2,)) * (area[0]/4, area[1]/4)
+        x = min(x, area[0])
+        y = min(y, area[1])
         return (x, y, 0)
 
     def __repr__(self):
@@ -124,6 +125,7 @@ def distance(node1, node2):
     a = np.array(node1.position)
     b = np.array(node2.position)
     return np.linalg.norm(a-b)
+
 
 ###################################################################################################
 
