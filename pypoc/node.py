@@ -159,6 +159,10 @@ class Node:
         self.update_queue()
         self.update_data()
 
+    @abstractmethod
+    def reset_values(self, network):
+        pass
+
     def update_dest_node_list(self, network, dest_ids=None):
         if not dest_ids:
             for node in network.nodes:
@@ -173,7 +177,7 @@ class Node:
         Initialize data structure for node.
         '''
         self.data = {'queue_size': [len(self.queue)],
-                     'transmited_packets': [],
+                     'transmitted_packets': [],
                      'relayed_packets': [],
                      'received_packets': [],
                      }
@@ -360,6 +364,9 @@ class VaryingTransmitNode(MovingNode):
         self.neighor_counter_updated = True
         self.neighbor = (n for n in itertools.cycle(nx.neighbors(network, self)))
 
+    def reset_values(self):
+        pass
+
 
 #TODO: Documentation!!!!!!!!
 class VaryingRelayNode(VaryingTransmitNode):
@@ -379,14 +386,19 @@ class VaryingRelayNode(VaryingTransmitNode):
         if len(self.queue) > 0:
             packet = self.queue.pop()
 
-            if network.tick >= self.next_ok_tick_for[packet.next_node]:
-                # Update next ok tick
-                self.next_ok_tick_for[packet.next_node] += self.edge_tick_val_for[packet.next_node] / network.step_value
+            try:
+                if network.tick >= self.next_ok_tick_for[packet.next_node]:
+                    # Update next ok tick
+                    self.next_ok_tick_for[packet.next_node] += self.edge_tick_val_for[packet.next_node] / network.step_value
 
-                packet.next_node.receive(network, packet)
-                self.data['relayed_packets'].append(packet)
-            else:
-                self.queue.append(packet)  #TODO: Is this ok? Need to check!!
+                    packet.next_node.receive(network, packet)
+                    self.data['relayed_packets'].append(packet)
+                else:
+                    self.queue.append(packet)  #TODO: Is this ok? Need to check!!
+            except:
+                print(f'Tick: {network.tick}')
+                print(f'Relay {self} wants to send {packet} to {packet.next_node}')
+                raise
 
     def update_neighbor_ok_list(self, network):
         self.next_ok_tick_for = {neighbor:0 for neighbor in nx.neighbors(network, self)}
@@ -395,6 +407,10 @@ class VaryingRelayNode(VaryingTransmitNode):
     def update_neighbor_edge_list(self, network):
         self.edge_tick_val_for = {e[1]:e[2]['TickValue'] for e in network.edges.data() if e[0] is self}
         self.neighbor_edge_list_updated = True
+
+    def reset_values(self, network):
+        self.update_neighbor_edge_list(network)
+        self.update_neighbor_ok_list(network)
 
 
 class RestrictedNode(VaryingRelayNode):
