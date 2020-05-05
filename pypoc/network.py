@@ -26,6 +26,7 @@ import numpy as np
 import toml
 from tqdm import tqdm # Progress Bar
 from scipy.spatial import distance
+from edgehandler import EdgeHandler
 from topology import Topology
 from node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode, RestrictedNode
 
@@ -98,12 +99,16 @@ class PyPocNetwork(nx.DiGraph):
         self.meta = NetworkData()  # for a fun naming thing; ie self.meta.data hehe
 
         self.packet_size = configuration['global']['packet-size']
-        self._initialize_step_values()
+        self.initialize_step_values()
 
         self.meta.title = configuration['title']
         self.meta.author = configuration['author']
 
-    def _initialize_step_values(self):
+        self.meta.area = (configuration['area']['width'], configuration['area']['height'])
+
+        self.edge_handler = EdgeHandler(configuration)
+
+    def initialize_step_values(self):
         '''
         This method defines the step value for the
         network based on bandwidth and packet size, and then
@@ -114,15 +119,18 @@ class PyPocNetwork(nx.DiGraph):
             try:
                 bandwidth = edge[2]['Bandwidth']
             except KeyError:
-                print(f'Could not find Bandwidth edge attrbitue for edge {e}')
+                print(f'Could not find Bandwidth edge attribute for edge {edge}')
             else:
                 if highest_bandwidth is None:
                     highest_bandwidth = edge[2]['Bandwidth']
                 elif edge[2]['Bandwidth'] > highest_bandwidth:
                     highest_bandwidth = edge[2]['Bandwidth']
 
+                # print(f'Setting Tick Value for edge {edge}')
+                # print(f'Previous: {edge[2]["TickValue"]}')
                 # Set the edges bandwidth value
                 edge[2]['TickValue'] = self.packet_size/edge[2]['Bandwidth']
+                # input(f'After: {edge[2]["TickValue"]}')
 
         self.step_value = self.packet_size/highest_bandwidth
         for node in self.nodes:
@@ -220,9 +228,9 @@ class PyPocNetwork(nx.DiGraph):
     def run_main_loop(self, minutes, **kwargs):
         seconds = minutes * 60
         ticks = int(seconds / self.step_value)
-        answer = input(f'Please confirm run. {ticks} ticks, ok? ([y]/n) ')
-        if answer == 'n':
-            print('Did not run'); return
+        #answer = input(f'Please confirm run. {ticks} ticks, ok? ([y]/n) ')
+        #if answer == 'n':
+        #    print('Did not run'); return
         self.meta.data['start_time_value'] = datetime.now()
         print(f'~~~~ Running {self.meta.title} for {ticks} time steps ~~~~')
         for self.tick in tqdm(range(1, ticks+1)):
@@ -232,8 +240,14 @@ class PyPocNetwork(nx.DiGraph):
                 node.run(self)
 
             self.update_channel_loads()
-            self.update_channel_links()
+            # self.update_channel_links()
             self.update_throughput()
+            self.edge_handler.handle_edges(self)
+            
+            # print(f'Tick {self.tick}')
+            # for edge in self.edges.data():
+            #     print(edge)
+            # input(',...')
 
         if 'filename' in kwargs.keys():
             simulation_filename = kwargs['filename']
