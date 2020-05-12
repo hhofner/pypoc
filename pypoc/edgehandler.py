@@ -1,4 +1,3 @@
-import topology
 import plotter
 import numpy as np
 
@@ -11,7 +10,7 @@ SAVE_TO_IMAGES = True
 class EdgeHandler:
     '''
     Class responsible for handling `edges` of a networkX object based on a
-    `foundation`, which is something that will define whether a link is 
+    `foundation`, which is something that will define whether a link is
     valid or not.
     '''
 
@@ -20,7 +19,7 @@ class EdgeHandler:
         '''TODO Documentation
         '''
         edge_foundation = configuration['global']['link-foundation']
-        
+
         if not edge_foundation in EdgeHandler.valid_foundations:
             raise Exception(f'Incorrect edge foundation {edge_foundation}; '
                             f'must be one of {EdgeHandler.valid_foundations}')
@@ -46,18 +45,18 @@ class EdgeHandler:
         '''TODO Documentation
         '''
         # "Handle" edges every 50 ticks
-        if not networkx_object.tick % 50:
+        if not networkx_object.tick % 30:
             if self.edge_foundation == 'distance':
                 self._handle_edges_based_on_distance(networkx_object)
 
-                # reset important edge values of a node
-                networkx_object.initialize_step_values()
-                self._reset_node_values(networkx_object)
+            # reset important edge values of a node
+            networkx_object.initialize_step_values()
+            self._reset_node_values(networkx_object)
 
             if SAVE_TO_IMAGES:
                 if not networkx_object.tick % 100:
                     self._save_images(networkx_object)
-    
+
     def _handle_edges_based_on_distance(self, networkx_object):
         '''TODO Documentation
         '''
@@ -78,10 +77,13 @@ class EdgeHandler:
                                 (node, node2, {'Bandwidth': self._downlink_bandwidth_for[node.name],
                                                'TickValue': None,
                                                'Channel': 0})
+                            print(f'Adding new connection {new_connection}')
                             edge_list.append(new_connection)
                     elif not self._is_distance_ok(node, node2) and networkx_object.has_edge(node, node2):
                         networkx_object.remove_edge(node, node2)
-        networkx_object.add_edges_from(edge_list)
+                        print(f'Removing edge: {node} -> {node2}')
+        if not len(edge_list) == 0:
+            networkx_object.add_edges_from(edge_list)
 
     def _reset_node_values(self, networkx_object):
         for node in networkx_object.nodes:
@@ -100,10 +102,10 @@ class EdgeHandler:
             return True
 
         if node.node_type == 1 or node2.node_type == 1:
-            if distance(node, node2) < 5.5:  #TODO: Distance!!!! Change!!! PLS
+            if distance(node, node2) < 50:  #TODO: Distance!!!! Change!!! PLS
                 return True
 
-        if node.node_type == 2 or node2.node_type == 2:
+        if node.name == 'leo-satellites' or node2.name == 'leo-satellites':
             if distance(node, node2) < 2000:
                 return True
 
@@ -113,7 +115,7 @@ class EdgeHandler:
         '''TODO Documentation
         '''
         self.area = area
-    
+
     def _save_images(self, networkx_object):
         filepath = 'gif_images/current_' + str(self.image_count) + '.png'
         self.image_count += 1
