@@ -236,8 +236,8 @@ class Node:
             try:
                 path = nx.shortest_path(network, next_hop, dest, weight='Channel')
                 path = [self] + path
-            except networkx.exception.NetworkXNoPath:
-                # print(f'No path {self} -> {dest} ')
+            except nx.exception.NetworkXNoPath:
+                print(f'No path {self} -> {dest} ')
                 return
 
         # TODO: Implement the functionality of nodes that can't reach
@@ -280,7 +280,8 @@ class MovingNode(Node):
         super().__init__(node_type, step_value)
         self.position = (0, 0, 0)  #x, y, z  METERS
         self.mobility_model = mobility_model
-        self.is_moving = True if callable(mobility_model) else False
+        self.is_moving = False
+        self.is_mobility_object_set = False
 
     def initalize_data(self):
         super().initalize_data()
@@ -301,13 +302,25 @@ class MovingNode(Node):
         self.update_data()
 
     def move(self, network):
+        if not self.is_mobility_object_set:
+            self._update_mobility_object(network)
         if self.is_moving:
             try:
-                x, y, z = self.mobility_model(network, self.step_value, self.position)
+                x, y, z = self.mobility_object.get_next_position()
             except:
                 raise
             else:
                 self.position = (x, y, z)
+
+    def _update_mobility_object(self, network):
+        try:
+            self.mobility_object = self.mobility_model(network,self)
+        except TypeError:
+            self.is_mobility_object_set = True
+            self.is_moving = False
+        else:
+            self.is_mobility_object_set = True
+            self.is_moving = True
 
 
 class VaryingTransmitNode(MovingNode):
@@ -338,8 +351,9 @@ class VaryingTransmitNode(MovingNode):
                 temp_generated_bytes = 0
                 for _ in range(number_of_packets):
                     fresh_packet = self.create_packet(network, next(self.neighbor))
-                    temp_generated_bytes += fresh_packet.size
-                    self.queue.append(fresh_packet)
+                    if not fresh_packet is None:
+                        temp_generated_bytes += fresh_packet.size
+                        self.queue.append(fresh_packet)
                 self.total_generated_bytes += temp_generated_bytes
 
             self.next_gen_time += 1/network.step_value
@@ -384,21 +398,23 @@ class VaryingRelayNode(VaryingTransmitNode):
             self.update_neighbor_edge_list(network)
 
         if len(self.queue) > 0:
-            packet = self.queue.pop()
+            packet = self.queue[-1]
 
             try:
                 if network.tick >= self.next_ok_tick_for[packet.next_node]:
                     # Update next ok tick
                     self.next_ok_tick_for[packet.next_node] += self.edge_tick_val_for[packet.next_node] / network.step_value
 
+                    packet = self.queue.pop()
                     packet.next_node.receive(network, packet)
                     self.data['relayed_packets'].append(packet)
-                else:
-                    self.queue.append(packet)  #TODO: Is this ok? Need to check!!
-            except:
+            except KeyError:
                 print(f'Tick: {network.tick}')
                 print(f'Relay {self} wants to send {packet} to {packet.next_node}')
-                raise
+
+                # TODO: Develop retry mechanism
+                # Drop packet if not possible to get
+                packet = self.queue.pop(); packet.dropped()
 
     def update_neighbor_ok_list(self, network):
         self.next_ok_tick_for = {neighbor:0 for neighbor in nx.neighbors(network, self)}
