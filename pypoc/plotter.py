@@ -7,7 +7,6 @@ __author__ = 'Hans Hofner'
 import os
 import csv
 import time
-import datetime
 from collections import defaultdict
 
 import numpy as np
@@ -367,7 +366,7 @@ def save_network_graph_image(networkx_ob, filepath, **kwargs):
             node_colors.append('brown')
             node_sizes.append(560)
     nx.draw_networkx(networkx_ob, node_color=node_colors, pos=positions, arrows=True,
-                     with_labels=True, node_size=node_sizes)
+                     with_labels=False, node_size=node_sizes)
 
     patches = []
     patches.append(mpatches.Patch(color='blue', label='Source UE\'s'))
@@ -377,7 +376,7 @@ def save_network_graph_image(networkx_ob, filepath, **kwargs):
     patches.append(mpatches.Patch(color='brown', label='LEO Satellite\'s'))
 
     plt.title(f'Tick {kwargs["tick_val"]}')
-    plt.legend(handles=patches)
+    # plt.legend(handles=patches)
     plt.xlim(-100, 100)
     plt.ylim(-100, 100)
     plt.savefig(filepath)
