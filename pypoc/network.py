@@ -198,30 +198,6 @@ class PyPocNetwork(nx.DiGraph):
             n1, n2 = edge
             self[n1][n2]['Channel'] = len(n1.queue) + len(n2.queue)
 
-    # TODO: This needs to be looked at.
-    def update_channel_links(self):
-        for node in self.nodes:
-            if node.is_moving:
-                print(f'Updating links for {node}')
-                ''' Find distance between all other nodes'''
-                to_remove_edges = []
-                for edge in self.edges(node):
-                    n1, n2 = edge
-                    dist = distance.euclidean(n1.position, n2.position)
-                    # input(f'Distance: {dist}\n\tn1 position: {n1.position}\n\tn2 position: {n2.position}')
-                    ''' Then calculate the capacity for that link'''
-                    capacity = signal_tools.calculate_capacity(dist)/8 # in BYTES
-                    # input(f'Calculated Capacity: {capacity}')
-                    '''Then Change the capacity'''
-                    # self[n1][n2]['Bandwidth'] = capacity
-                    # self.initialize_step_values()
-                    if capacity < self.parameters['threshold_value']:
-                        to_remove_edges.append((n1, n2))
-
-                for node_pair in to_remove_edges:
-                    u, v = node_pair
-                    self.remove_edge(u, v)
-
     ###################################################################################################
     # Main Loop #######################################################################################
     ###################################################################################################
@@ -240,10 +216,9 @@ class PyPocNetwork(nx.DiGraph):
                 node.run(self)
 
             self.update_channel_loads()
-            # self.update_channel_links()
             self.update_throughput()
             self.edge_handler.handle_edges(self)
-            
+
             # print(f'Tick {self.tick}')
             # for edge in self.edges.data():
             #     print(edge)
