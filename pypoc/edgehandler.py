@@ -45,7 +45,7 @@ class EdgeHandler:
         '''TODO Documentation
         '''
         # "Handle" edges every 50 ticks
-        if not networkx_object.tick % 30:
+        if not networkx_object.tick % 10:
             if self.edge_foundation == 'distance':
                 self._handle_edges_based_on_distance(networkx_object)
 
@@ -60,7 +60,7 @@ class EdgeHandler:
     def _handle_edges_based_on_distance(self, networkx_object):
         '''TODO Documentation
         '''
-        print('Handling Edges based on distance...')
+        #print('Handling Edges based on distance...')
         try:
             self.area
         except:
@@ -77,11 +77,11 @@ class EdgeHandler:
                                 (node, node2, {'Bandwidth': self._downlink_bandwidth_for[node.name],
                                                'TickValue': None,
                                                'Channel': 0})
-                            print(f'Adding new connection {new_connection}')
+                            #print(f'Adding new connection {new_connection}')
                             edge_list.append(new_connection)
                     elif not self._is_distance_ok(node, node2) and networkx_object.has_edge(node, node2):
                         networkx_object.remove_edge(node, node2)
-                        print(f'Removing edge: {node} -> {node2}')
+                        #print(f'Removing edge: {node} -> {node2}')
         if not len(edge_list) == 0:
             networkx_object.add_edges_from(edge_list)
 
