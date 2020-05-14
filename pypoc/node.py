@@ -338,16 +338,26 @@ class VaryingTransmitNode(MovingNode):
         self.neighor_counter_updated = False
         self.total_generated_bytes = 0
 
+        self._leftover_packets = None
+
     def _generate(self, network):
         '''
         Generate the number of packets (and subsequently number of ticks) to be sent
         later in time.
         '''
         if network.tick > self.next_gen_time:
-            number_of_packets = int(self.gen_rate / self.packet_size)
+            number_of_packets = np.random.normal(self.gen_rate, scale=self.gen_rate/4) / self.packet_size
             if number_of_packets < 1:
-                raise Exception(f'Packets larger than gen rate still need to be implemented.')
+                self._leftover_packets = number_of_packets
             else:
+                if self._leftover_packets is None:
+                    self._leftover_packets = number_of_packets - int(number_of_packets)
+                else:
+                    number_of_packets += self._leftover_packets
+                    self._leftover_packets = number_of_packets - int(number_of_packets)
+
+                number_of_packets = int(round(number_of_packets))
+
                 temp_generated_bytes = 0
                 for _ in range(number_of_packets):
                     fresh_packet = self.create_packet(network, next(self.neighbor))
@@ -370,7 +380,7 @@ class VaryingTransmitNode(MovingNode):
     # TODO: Consider different bandwidths
     def transmit(self, network):
         if not self.neighor_counter_updated:
-            self.update_neighbor_counter(network)  #TODO: Change to only call once
+            self.update_neighbor_counter(network)
         self._generate(network)
         self._transmit(network)
 
@@ -379,7 +389,7 @@ class VaryingTransmitNode(MovingNode):
         self.neighbor = (n for n in itertools.cycle(nx.neighbors(network, self)))
 
     def reset_values(self):
-        pass
+        self.neighbor_counter_updated = False
 
 
 #TODO: Documentation!!!!!!!!
