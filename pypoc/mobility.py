@@ -34,11 +34,9 @@ class MobilityEnum:
         def get_new_direction(self):
             #print('Geting new direction')
             position = self.node.position
-            target_x, target_y = np.random.normal(size=(2,))
-            target_x = min(self.network.meta.area[0], target_x*self.network.meta.area[0]) if target_x > 0 else \
-                    max(self.network.meta.area[0], target_x*self.network.meta.area[0])
-            target_y = min(self.network.meta.area[1], target_y*self.network.meta.area[1]) if target_y > 0 else \
-                    max(self.network.meta.area[1], target_y*self.network.meta.area[1])
+            target_x, target_y = np.random.normal(scale=0.75, size=(2,))
+            target_x = target_x*self.network.meta.area[0]
+            target_y = target_y*self.network.meta.area[1]
             vector_to_target = (target_x - position[0], target_y - position[1])
 
             #Normalize vector
