@@ -6,6 +6,8 @@ __author__ = 'Hans Hofner'
 
 from collections import deque, defaultdict
 from abc import ABC, abstractmethod
+import copy
+import time
 import matplotlib.pyplot as plt
 import numpy as np
 import math
@@ -224,21 +226,35 @@ class Node:
     def create_packet(self, network, next_hop=None):
         if not self.dest_node_list:
             self.update_dest_node_list(network)
-        dest = random.choice(self.dest_node_list)
-        if next_hop is None:
-            try:
-                path = nx.shortest_path(network, self, dest, weight='Channel')
-            except nx.exception.NetworkXNoPath:
-                # print(f'No path {self} -> {dest} ')
-                return
-        else:
-            # TODO: This is dangerous because next_hop might not exist.
-            try:
-                path = nx.shortest_path(network, next_hop, dest, weight='Channel')
-                path = [self] + path
-            except nx.exception.NetworkXNoPath:
-                print(f'No path {self} -> {dest} ')
-                return
+
+        next_hop_tries = 0
+        if not network[self]:
+            return None
+
+        while True:
+            if next_hop_tries > 20:
+                return None
+                #raise Exception(f'Finding path error. Having trouble finding paths for {self}')
+            dest = random.choice(self.dest_node_list)
+
+            if next_hop is None:
+                try:
+                    path = nx.shortest_path(network, self, dest, weight='Channel')
+                except nx.exception.NetworkXNoPath:
+                    print(f'No path from {self} -> {dest}, next_hop_tries: {next_hop_tries}')
+                    next_hop_tries += 1
+                else:
+                    break
+            else:
+                # TODO: This is dangerous because next_hop might not exist.
+                try:
+                    path = nx.shortest_path(network, next_hop, dest, weight='Channel')
+                    path = [self] + path
+                except nx.exception.NetworkXNoPath:
+                    print(f'No path {self} -> {dest}, next_hop_tries: {next_hop_tries}')
+                    next_hop_tries += 1
+                else:
+                    break
 
         # TODO: Implement the functionality of nodes that can't reach
         # the destination from next_hop -- for now assume they can
@@ -359,8 +375,10 @@ class VaryingTransmitNode(MovingNode):
                 number_of_packets = int(round(number_of_packets))
 
                 temp_generated_bytes = 0
+                if not network[self]:
+                    self._leftover_packets += number_of_packets
                 for _ in range(number_of_packets):
-                    fresh_packet = self.create_packet(network, next(self.neighbor))
+                    fresh_packet = self.create_packet(network)
                     if not fresh_packet is None:
                         temp_generated_bytes += fresh_packet.size
                         self.queue.append(fresh_packet)
@@ -386,7 +404,10 @@ class VaryingTransmitNode(MovingNode):
 
     def update_neighbor_counter(self, network):
         self.neighor_counter_updated = True
-        self.neighbor = (n for n in itertools.cycle(nx.neighbors(network, self)))
+        try:
+            self.neighbor = (n for n in itertools.cycle(nx.neighbors(network, self)))
+        except:
+            raise
 
     def reset_values(self):
         self.neighbor_counter_updated = False

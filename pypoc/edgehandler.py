@@ -5,7 +5,9 @@ import numpy as np
 '''
 __author__ = "Hans Hofner"
 
-SAVE_TO_IMAGES = True
+SAVE_TO_IMAGES = False
+
+NODE_PROGRESSION = 15  # How many nodes to add at some step
 
 class EdgeHandler:
     '''
