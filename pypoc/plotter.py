@@ -203,7 +203,7 @@ def plot_queue_simple(filepath=None, sim_directory='./simulation_data', more_fil
 
     plt.show()
 
-def plot_throughputs():
+def plot_throughputs(simulation_names):
     plt.style.use('fivethirtyeight')
     fig, ax = plt.subplots()
 
@@ -217,7 +217,7 @@ def plot_throughputs():
                     filepath = dirpath + file
                     filepaths.append(filepath)
         sim_set.append(filepaths)
-    
+
     def get_num(x):
         return int(x.split('__')[1][:x.split('__')[1].index('.')])
 
@@ -239,7 +239,7 @@ def plot_throughputs():
                         raise
             x_numbers.append(get_num(filepath))
         plt.plot(x_numbers, throughput_movement, label=f't{sim_set.index(fileset)}')
-    
+
     ax.set_title(f'Network Throughput')
     ax.set_ylabel(f'bits-per-second')
     plt.legend()
@@ -261,7 +261,7 @@ def plot_drop_rate():
                     filepath = dirpath + file
                     filepaths.append(filepath)
         sim_set.append(filepaths)
-    
+
     def get_num(x):
         return int(x.split('__')[1][:x.split('__')[1].index('.')])
 
@@ -287,12 +287,12 @@ def plot_drop_rate():
                     except IndexError:
                         input(f"IndexError for {filepath}: {row}")
                         raise
-            
+
             drop_rates.append((drop_value/generated_value)*100)
-                            
+
             x_numbers.append(get_num(filepath))
         plt.plot(x_numbers, drop_rates, label=f't{sim_set.index(fileset)}')
-    
+
     ax.set_title(f'Drop Rate')
     ax.set_ylabel(f'Percentage %')
     plt.legend()

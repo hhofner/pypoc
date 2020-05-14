@@ -3,31 +3,38 @@ import toml
 import os
 import time
 import argparse
+import shutil
+import time
 
-NUMBER_OF_SOURCE_NODES = list(range(50, 250))
+NUMBER_OF_SOURCE_NODES = list(range(5, 10))
+SIMULATION_RUN_NAME = 'DYNAMIC'
 
-def run_changing_src_nodes(config_file, title):
-    config = toml.load(config_file)
-    for count in NUMBER_OF_SOURCE_NODES:
-        print(f"Editing Source Count from {config['nodes']['src-nodes']['count']} -- to --> {count}")
-        config["title"] = f'{title}_{count}'
-        config["nodes"]["src-nodes"]["count"] = count
-        f=open(config_file, mode='w')
-        toml.dump(config, f)
+if __name__ == "__main__":
+    config_files = []
+    print(f'{"$"*30} Creating Config Files {"$"*30}')
+    time.sleep(5)
+    for num_src_nodes in NUMBER_OF_SOURCE_NODES:
+        # Copy file
+        new_config_name = f'config_{num_src_nodes}.toml'
+        shutil.copyfile('config.toml', new_config_name)
+        print(f'Creating copy of config: {new_config_name}')
+        new_config = toml.load(new_config_name)
+        new_config['nodes']['src-nodes']['count'] = num_src_nodes
+        new_config['title'] = SIMULATION_RUN_NAME + f'_{num_src_nodes}'
+
+        # Save it back to file
+        f = open(new_config_name, mode='w')
+        toml.dump(new_config, f)
         f.close()
-        print("~~~~ Saved to file! ~~~~")
-        time.sleep(0.5)  # IDK why
-        print("...Now running...")
+        config_files.append(new_config_name)
+
+    for config_file in config_files:
+        print(f'{"$"*30} Running Simulation with {config_file} {"$"*30}')
         try:
             os.system(f"python pypoc --run --config {config_file}")
         except:
-            break
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--title', default="nsfuvnutfreuagiureanfgu4anfgurebnghreabghrabghdbaghbda")
-    parser.add_argument('--configFile', default="config.toml")
-    args = parser.parse_args()
-    ans = input(f"Run {args.title} with config {args.configFile}? [y]/n ")
-    if not ans == "n":
-        run_changing_src_nodes(args.configFile, args.title)
+            print('Couldnt run for config {config_file}')
+            raise
+        else:
+            print('Done! Removing {config_file}')
+            os.remove(config_file)
