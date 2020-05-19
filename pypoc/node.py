@@ -241,7 +241,7 @@ class Node:
                 try:
                     path = nx.shortest_path(network, self, dest, weight='Channel')
                 except nx.exception.NetworkXNoPath:
-                    print(f'No path from {self} -> {dest}, next_hop_tries: {next_hop_tries}')
+                    #print(f'No path from {self} -> {dest}, next_hop_tries: {next_hop_tries}')
                     next_hop_tries += 1
                 else:
                     break
@@ -251,7 +251,7 @@ class Node:
                     path = nx.shortest_path(network, next_hop, dest, weight='Channel')
                     path = [self] + path
                 except nx.exception.NetworkXNoPath:
-                    print(f'No path {self} -> {dest}, next_hop_tries: {next_hop_tries}')
+                    #print(f'No path {self} -> {dest}, next_hop_tries: {next_hop_tries}')
                     next_hop_tries += 1
                 else:
                     break
@@ -362,7 +362,8 @@ class VaryingTransmitNode(MovingNode):
         later in time.
         '''
         if network.tick > self.next_gen_time:
-            number_of_packets = np.random.normal(self.gen_rate, scale=self.gen_rate/4) / self.packet_size
+            #number_of_packets = np.random.normal(self.gen_rate, scale=self.gen_rate/4) / self.packet_size
+            number_of_packets = self.gen_rate / self.packet_size
             if number_of_packets < 1:
                 self._leftover_packets = number_of_packets
             else:
@@ -440,8 +441,8 @@ class VaryingRelayNode(VaryingTransmitNode):
                     packet.next_node.receive(network, packet)
                     self.data['relayed_packets'].append(packet)
             except KeyError:
-                print(f'Tick: {network.tick}')
-                print(f'Relay {self} wants to send {packet} to {packet.next_node}')
+                #print(f'Tick: {network.tick}')
+                #print(f'Relay {self} wants to send {packet} to {packet.next_node}')
 
                 # TODO: Develop retry mechanism
                 # Drop packet if not possible to get
