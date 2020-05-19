@@ -14,18 +14,18 @@ np.random.seed(seed)  # Randomizes UE positions
 
 class Topology:
     def __init__(self, configuration):
-        print('Initializing topology configuration...')
+        #print('Initializing topology configuration...')
         packet_size = configuration['global']['packet-size']
         area = (configuration['area']['width'], configuration['area']['height'])
 
         self.node_dict = {}  # Dict of TYPE of Nodes (src-node, etc)
-        print('Creating node objects...')
+        #print('Creating node objects...')
         for node in configuration['nodes'].keys():
             self.node_dict[node] = []  # Make an entry for different type of node
             node_type = configuration['nodes'][node]['type']
             count = configuration['nodes'][node]['count']
             position = configuration['nodes'][node]['position']
-            print(f'Fetching mobility model for {node}')
+            #print(f'Fetching mobility model for {node}')
             movement = MobilityEnum.get_movement(configuration['nodes'][node]['movement'])
             parameters = configuration['nodes'][node]['params']
 
@@ -76,7 +76,7 @@ class Topology:
 
             return False
 
-        print('Creating links between nodes...')
+        #print('Creating links between nodes...')
         edge_list = []
 
         connections_for = {}
@@ -140,13 +140,13 @@ def get_sagin_positional(network):
     pos_dict = {}
     whatever = [(1,0), (2,0), (3,0), (4,0), (1,1), (2,1), (3,1), (4,1), (3, 2), (6, 2), (5, 1), (6, 1), (7, 1), (8, 1), (5, 0), (6, 0), (7, 0), (8, 0)]
     for node in network:
-        print(node.id)
+        #print(node.id)
         pos_dict[node] = whatever[node.id]
 
     return pos_dict
 
 if __name__ == '__main__':
     configuration = toml.load('../config.toml')
-    print('testing topology')
+    #print('testing topology')
     new = Topology(configuration)
     print(new.topology)
