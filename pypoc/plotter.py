@@ -203,29 +203,39 @@ def plot_queue_simple(filepath=None, sim_directory='./simulation_data', more_fil
 
     plt.show()
 
-def plot_throughputs(simulation_names):
+def plot_throughputs():
+    '''
+    Plot throughputs. The protocol is that it finds and matches
+    files with the same "name" and then organizes by the prepended
+    number. Example: "dynamic_5, dynamic_6, static_6, static_7" then
+    creates two batches: one static and one dynamic.
+    '''
     plt.style.use('fivethirtyeight')
     fig, ax = plt.subplots()
 
     dirpath = 'simulation_data/'
-    sim_set = []
-    for i in range(1, 5):
-        filepaths = []
-        for file in os.listdir(dirpath):
-            if f'thu_t{i}' in file or f'thur_t{i}' in file:
-                if '.csv' in file:
-                    filepath = dirpath + file
-                    filepaths.append(filepath)
-        sim_set.append(filepaths)
-
+    batch_sets = defaultdict(list)  # Contains list of "batches", which are represnted as lists
+    
     def get_num(x):
-        return int(x.split('__')[1][:x.split('__')[1].index('.')])
+        np = x.split('_')[2]
+        return int(np[:np.index('.')])
 
-    for fileset in sim_set:
+    print('Collecting batches')
+    # Get all CSV files and put them into batches
+    for filename in os.listdir(dirpath):
+        if filename[-3:] == 'csv':
+            batch_name = filename[:filename.index('_')]
+            batch_sets[batch_name].append(os.path.join(dirpath, filename))
+
+    print(f'Collected batches: {batch_sets}')
+    time.sleep(3)
+
+    for batch_key in batch_sets:
+        print(f'Plotting batch: {batch_key}')
         throughput_movement = []
         x_numbers = []
-        for filepath in sorted(fileset, key=get_num):
-            print(f'{">" * 15} parsing {filepath} {">" * 15}')
+        for filepath in sorted(batch_sets[batch_key], key=get_num):
+            print(f'{">" * 15} parsing {filepath} {"<" * 15}')
 
             with open(filepath, mode='r') as csvfile:
                 reader=csv.reader(csvfile)
@@ -238,7 +248,7 @@ def plot_throughputs(simulation_names):
                         input(f"IndexError for {filepath}: {row}")
                         raise
             x_numbers.append(get_num(filepath))
-        plt.plot(x_numbers, throughput_movement, label=f't{sim_set.index(fileset)}')
+        plt.plot(x_numbers, throughput_movement, label=f'{batch_key}')
 
     ax.set_title(f'Network Throughput')
     ax.set_ylabel(f'bits-per-second')
