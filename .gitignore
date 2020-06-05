@@ -1,6 +1,7 @@
 *.log
 *.csv
 *.toml
+*.gif
 launch.json
 __pycache__/
 .idea/
