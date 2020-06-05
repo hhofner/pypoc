@@ -10,6 +10,21 @@ from copy import deepcopy
 import math
 
 WALKING_SPEED = 1.4 #m/s
+UAV_SPEED = 5.0 #m/s
+
+class Movement:
+    def __init__(self, network, node):
+        self.target_position = None
+        self.speed = None
+
+        self.network = network
+        self.node = node
+        self.current_tick = 0
+        self.direction = self.get_new_direction()
+
+    def get_next_position(self):
+        pass
+    
 def distance(position1, position2):
     distance =  np.linalg.norm(np.array(position1)-np.array(position2))
     return distance
@@ -30,6 +45,7 @@ class MobilityEnum:
             self.current_tick = 0
             self.speed = WALKING_SPEED * self.network.step_value
             self.direction = self.get_new_direction()
+            self.to_wait = 0
 
         def get_new_direction(self):
             #print('Geting new direction')
@@ -48,6 +64,32 @@ class MobilityEnum:
 
         def get_next_position(self):
             #print(f'Target destination: {self.target_position}')
+            if self.to_wait <= 0:
+                self.direction = self.get_new_direction()
+            elif self.to_wait > 0:
+                self.to_wait -= 1
+                return self.node.position  # don't move 
+
+            elapsed_ticks = self.network.tick - self.current_tick
+            if elapsed_ticks < 0:
+                raise Exception('Elapsed tick problem')
+            to_move_distance = np.array(self.direction * elapsed_ticks * self.speed)
+            self.current_tick = self.network.tick
+
+            if distance(self.node.position, self.target_position) < distance(
+                                                                        np.array(self.node.position)+\
+                                                                                self.direction*self.speed,
+                                                                        self.target_position):
+                self.to_wait = 2
+
+            return np.array(self.node.position) + to_move_distance
+
+    '''class UAVEllipseMovement(Movement):
+        def __init__(self, network, node):
+            super().__init__(network, node)
+            self.speed = UAV_SPEED * self.network.step_value
+
+       def get_next_position(self):
             elapsed_ticks = self.network.tick - self.current_tick
             if elapsed_ticks < 0:
                 raise Exception('Elapsed tick problem')
@@ -60,7 +102,17 @@ class MobilityEnum:
                                                                         self.target_position):
                 self.direction = self.get_new_direction()
 
-            return np.array(self.node.position) + to_move_distance
+            return np.array(self.node.position) + to_move_distance 
+'''
+    class UAVWayPointMovement(WalkingWaypointMovement):
+        def __init__(self, network, node):
+            '''
+            Similar to UE Random Waypoint movement, except the UAV waits
+            for longer time before moving.
+            '''
+            super().__init__(network, node)
+            self.speed = UAV_SPEED * seelf.network.step_value
+
 
     #TODO: Change to generator
     def random_movement(network, time_step, position):
@@ -83,7 +135,7 @@ class MobilityEnum:
                             'RANDOM': MobilityEnum.random_movement,
                             'WALKING_WAYPOINT': MobilityEnum.WalkingWaypointMovement}
         if key not in mobility_methods:
-            print(f'key: `{key}` not found in list of available method keys: {mobility_methods}')
+            #print(f'key: `{key}` not found in list of available method keys: {mobility_methods}')
             return None
         else:
             return mobility_methods[key]
