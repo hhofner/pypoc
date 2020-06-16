@@ -99,15 +99,18 @@ class EdgeHandler:
             b = np.array(node2.position)
             return np.linalg.norm(a-b)
 
-        # input(f'Distance Between {node} and {node2} is {distance(node, node2)}')
-        if node.node_type == node2.node_type:
+        if node.name == 'base-stations' and node2.name == 'base-stations':
             return True
 
-        if node.node_type == 1 or node2.node_type == 1:
-            if distance(node, node2) < 50:  #TODO: Distance!!!! Change!!! PLS
+        if node.name == 'base-stations' or node2.name == 'base-stations':
+            if distance(node, node2) <= 55:
                 return True
 
-        if node.name == 'leo-satellites' or node2.name == 'leo-satellites':
+        if node.name == 'uav-base-stations' or node2.name == 'uav-base-stations':
+            if distance(node, node2) <= 45:
+                return True
+        
+        if node.name  == 'leo-satellites' or node2.name == 'leo-satellites':
             if distance(node, node2) < 2000:
                 return True
 
