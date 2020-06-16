@@ -31,7 +31,6 @@ class Packet:
         Packet.dropped_count = 0
         Packet.generated_count = 0
 
-
     def __init__(self, path, tick_time, size=1):
         '''
         Increments the Packet class-wide generated_count variable and

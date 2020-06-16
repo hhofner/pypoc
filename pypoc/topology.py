@@ -63,7 +63,7 @@ class Topology:
                 return True
 
             if node.name == 'base-stations' or node2.name == 'base-stations':
-                if distance(node, node2) <= 65:
+                if distance(node, node2) <= 55:
                     return True
 
             if node.name == 'uav-base-stations' or node2.name == 'uav-base-stations':
