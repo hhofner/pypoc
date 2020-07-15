@@ -198,6 +198,31 @@ class PyPocNetwork(nx.DiGraph):
             n1, n2 = edge
             self[n1][n2]['Channel'] = len(n1.queue) + len(n2.queue)
 
+    def request_state(self, node, memory_set):
+        '''
+        This adds the node to the "please record the state for this memory set  " list.
+        '''
+        if self.wanting_states:
+            if node in self.wanting_states:
+                self.wanting_states[node].append(memory_set)
+            else:
+                self.wanting_states[node] = [memory_set]
+        else:
+            self.wanting_states = {node: [memory_set]} 
+
+    def _record_states(self):
+        if not self.wanting_states:
+            print('No nodes have requested wanting states!')
+        else:
+            for node in self.wanting_states:
+                # First get the state of the node
+                node_state = node.get_state(self)
+                # Then record the state at every memory_set
+                for memory_set in self.wanting_states[node]:
+                    memory_set['next_state'] = node_state
+
+        self.wanting_states.clear()
+
     ###################################################################################################
     # Main Loop #######################################################################################
     ###################################################################################################
@@ -218,7 +243,7 @@ class PyPocNetwork(nx.DiGraph):
             self.update_channel_loads()
             self.update_throughput()
             self.edge_handler.handle_edges(self)
-
+            self._record_states()
             # print(f'Tick {self.tick}')
             # for edge in self.edges.data():
             #     print(edge)

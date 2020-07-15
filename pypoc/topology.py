@@ -114,7 +114,7 @@ class Topology:
             return (x,y,z)
 
     def _ue_random(self, area):
-        x, y = np.random.normal(size=(2,)) * (area[0]/4, area[1]/4)
+        x, y = np.random.normal(size=(2,)) * (area[0]/3, area[1]/3)
         x = min(x, area[0])
         y = min(y, area[1])
         return (x, y, 0)

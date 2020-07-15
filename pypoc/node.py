@@ -16,9 +16,9 @@ import itertools
 import logging
 
 import networkx as nx
+from models import PyTorchQNetwork
 
 logging.basicConfig(level=logging.DEBUG)
-
 
 class Packet:
     arrived_count = 0
@@ -76,6 +76,9 @@ class Packet:
             self.arrived(tick)
 
     def arrived(self, tick):
+        if self._has_dropped:
+            raise Exception(f'Packet can not have arrived AND be dropped!!!'
+                    f' info from Packet {self} arrived method')
         if not self._has_arrived:
             Packet.arrived_count += 1
             # print(f'{self} arrived!')
@@ -84,10 +87,45 @@ class Packet:
         self._has_arrived = True
         # Update average delay
 
-    def dropped(self):
+        self._record_reward()
+
+    def dropped(self, tick):
+        if self._has_arrived:
+            raise Exception(f'Packet can not have arrived AND be dropped!!!'
+                    f' info from Packet {self} dropped method')
         if not self._has_dropped:
             Packet.dropped_count += 1
+            self.died_tick = tick
+            self.delay = self.died_tick - self.born_tick
         self._has_dropped = True
+
+        self._record_reward()
+
+    def reward_request(self, memory_set):
+        '''
+        Record all memory sets that need to be updated when packet
+        arrives. Collect references to "memory_set" objects that 
+        can be directly updated by this node.
+        '''
+        if self.memory_sets:
+            self.memory_sets.append(memory_set)
+        else:
+            self.memory_sets = [memory_set]
+
+    def _record_reward(self):
+        if not self._has_arrived or not self._has_dropped:
+            raise Exception('Something is off, has_arrived AND has_dropped is marked false')
+        else:
+            if not self.memory_sets:
+                print('No memory sets were ever recorded!')
+            else:
+                # Start updating all memory sets
+                for memory_set in self.memory_sets:
+                    if self._has_arrived:
+                        memory_set['reward'] = 1/self.delay
+                    else:
+                        memory_set['reward'] = -self.delay
+            self.memory_sets.clear()
 
     @property
     def next_node(self):
@@ -157,7 +195,7 @@ class Node:
         elif self.node_type == 1:
             self.relay(network)
 
-        self.update_queue()
+        self.update_queue(network)
         self.update_data()
 
     @abstractmethod
@@ -166,8 +204,12 @@ class Node:
 
     def update_dest_node_list(self, network, dest_ids=None):
         if not dest_ids:
+            max_destination_node_count = 6
             for node in network.nodes:
+                if max_destination_node_count == 0:
+                    return
                 if node.node_type == 2:
+                    max_destination_node_count -= 1
                     self.dest_node_list.append(node)
 
         if len(self.dest_node_list) == 0:
@@ -186,7 +228,7 @@ class Node:
     def update_data(self):
         self.data['queue_size'].append(len(self.queue))
 
-    def update_queue(self):
+    def update_queue(self, network):
         '''
         Push all the packets in wait_queue onto the main
         queue. This is done to give time for packets to propagate
@@ -313,7 +355,7 @@ class MovingNode(Node):
             self.relay(network)
 
         self.move(network)
-        self.update_queue()
+        self.update_queue(network)
         self.update_data()
 
     def move(self, network):
@@ -445,7 +487,7 @@ class VaryingRelayNode(VaryingTransmitNode):
 
                 # TODO: Develop retry mechanism
                 # Drop packet if not possible to get
-                packet = self.queue.pop(); packet.dropped()
+                packet = self.queue.pop(); packet.dropped(network.tick)
 
     def update_neighbor_ok_list(self, network):
         self.next_ok_tick_for = {neighbor:0 for neighbor in nx.neighbors(network, self)}
@@ -475,7 +517,7 @@ class RestrictedNode(VaryingRelayNode):
         super().initalize_data()
         self.data.update({'dropped_packets': []})
 
-    def update_queue(self):
+    def update_queue(self, network):
         current_queue_size = self.get_queue_size()
         while (current_queue_size < self.max_buffer_size):
             if len(self.wait_queue) <= 0:
@@ -486,6 +528,134 @@ class RestrictedNode(VaryingRelayNode):
 
         if len(self.wait_queue) > 0:
             for packet in self.wait_queue:
-                packet.dropped()
+                packet.dropped(network.tick)
             self.data['dropped_packets'].append(packet)
             self.wait_queue.clear()
+
+class QNode(RestrictedNode):
+    '''
+    This node will define all training, recording and updating methods
+    for a Q-Network implementation.
+    '''
+
+    class ReplayMemory:
+        def __init__(self, capacity):
+            self.memory = deque(maxlen=capacity)
+            self.counter = 0
+
+        def append(self, element):
+            self.memory.append(element)
+            self.counter += 1
+
+        def sample(self, sample_count):
+            '''
+            Sample replays that have been fully filled out
+            (no None values, etc)
+            '''
+            #TODO: Optimize
+            print("Getting sample")
+            sample_list = []
+            count = 0
+            error_count = 0
+            while(count < sample_count):
+                sample = random.sample(self.memory)
+                if not sample['next_state'] or not sample['reward']:
+                    error_count += 1
+                else:
+                    sample_list.append(sample)
+                    count += 1
+                if error_count >= 50:
+                    print('Error count exceeded 50')
+                    print(f'Memory list: {self.memory}')
+                    raise Exception('Exceeded allowed amount of tries, consider rewriting this method')
+            return random.sample(self.memory, sample_count)
+
+        def __len__(self):
+            return len(self.memory)
+
+    def __init__(self, node_type, step_value, mobility_model, packet_size, gen_rate, max_buffer_size):
+        self.super.__init__(node_type, step_value, mobility_model, packet_size, gen_rate, max_buffer_size)
+
+        #TODO: Load configuration here
+        capacity = None  # Capacity for replay memory
+        self.max_neighbors = None  # This defines the input to the DQN, max_neighbors**2
+
+        self.GAMMA = None
+        self.BATCH_SIZE = None
+
+        self.EPS_START = None # Helps the decay in random selection
+        self.EPS_END = None  # Helps the decay in random selection
+        self.EPS_DECAY = None
+        self.steps_done = 0
+
+        self.action_space = None
+        self.action_space_size = len(self.action_space)
+
+        self.replay_memory = ReplayMemory(capacity)
+
+        self.policy_net = PyTorchQNetwork()
+        self.target_net = PyTorchQNetwork()
+
+        # Copy the `state_dict` (weights and bias) from policy to target
+        self.target_net.load_state_dict(self.policy_net.state_dict())
+
+        # Sets network into "evaluation mode"
+        self.target_net.eval()
+
+        self.optimizer = optim.RMSprop(self.policy_net.parameters())
+
+    def relay(self, network):
+        self.state = self.get_state(network)
+
+        epsilon_threshold = self.EPS_END + (self.EPS_START - self.EPS_END) * \
+                math.exp(-1 * self.steps_done / self.EPS_DECAY)
+        self.steps_done += 1
+
+        if self.record_count == self.batch_size:
+            batch = self.replay_memory.sample(self.batch_size)
+            # Train network here
+        else:
+            print('Choosing random/policy action based on greedy epsilon')
+            if random.random() > epsilon_threshold:
+                pass # TODO: Get action from policy network
+            else:
+                pass # TODO: Random action here
+            '''
+            The network object will be responsible for recording the state, since it could change after
+            this method is called (because the network is a discrete time simulation).
+
+            Therefore, ask the network to record the state for this node.
+            '''
+            memory_set = {'tick': network.tick, 'state': self.state, 'action': action, 
+                    'reward': None, 'next_state': None}
+            self.replay_memory.append(memory_set)
+            network.request_state(self, memory_set)
+
+            #TODO: Ask the packet to measure reward when it has arrived
+            # packet.reward_request(memory_set)
+
+    def transmit(self, network):
+        raise Exception('CURRENTLY NOT IMPLEMENTED, ONLY FOR RELAYING')
+
+    def optimize_model(self):
+        if len(self.replay_memory) < self.BATCH_SIZE:
+            return
+        # Get a list of replay memories 
+        transitions = self.replay_memory.sample(self.BATCH_SIZE)
+        # Turn into list of list (tensor?)
+        batch =  
+
+    def get_state(self, network):
+        state = np.zeros(self.max_neighbors**2)  # Array consists of neighbors and their neighbors as well
+        # Collect packet size info for all neighbors, and neighbor of neighbors
+        index = 0
+        for neighbor in enumeratenx.neighbors(network, self):
+            state[index](len(neighbor.queue))
+            for neighbor_in_law in nx.neighbors(network, neighbor):
+                index+=1
+                state.append(len(neighbor_in_law.queue))
+            index+=1
+
+        print(f'State for {self} at tick {network.tick}: {state}')
+        return state
+

@@ -223,6 +223,7 @@ def plot_throughputs():
     print('Collecting batches')
     # Get all CSV files and put them into batches
     for filename in os.listdir(dirpath):
+        print(filename)
         if filename[-3:] == 'csv':
             batch_name = filename[:filename.index('_')]
             batch_sets[batch_name].append(os.path.join(dirpath, filename))
@@ -252,6 +253,7 @@ def plot_throughputs():
 
     ax.set_title(f'Network Throughput')
     ax.set_ylabel(f'bits-per-second')
+    plt.ylim(0.5e7, 2e7)
     plt.legend()
     plt.show()
 
