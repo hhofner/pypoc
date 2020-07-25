@@ -8,8 +8,8 @@ import shutil
 from pathlib import Path
 from datetime import datetime, timedelta
 
-import pypoc.network
-import pypoc.plotter
+import pypoc.network as network
+import pypoc.plotter as plotter
 
 __author__ = 'Hans Hofner'
 

@@ -1,4 +1,4 @@
-import plotter
+import pypoc.plotter
 import numpy as np
 
 '''
@@ -99,13 +99,16 @@ class EdgeHandler:
             b = np.array(node2.position)
             return np.linalg.norm(a-b)
 
+        if node.name == 'q-stations' or node2.name == 'q-stations':
+            return True
+
         if node.name == 'base-stations' and node2.name == 'base-stations':
             return True
 
         if node.name == 'base-stations' or node2.name == 'base-stations':
             if distance(node, node2) <= 55:
                 return True
-
+        
         if node.name == 'uav-base-stations' or node2.name == 'uav-base-stations':
             if distance(node, node2) <= 45:
                 return True

@@ -15,7 +15,9 @@ import random
 import itertools
 import logging
 
-import pypoc.models
+import pypoc.models as models
+import torch
+import torch.optim as optim
 import networkx as nx
 
 logging.basicConfig(level=logging.DEBUG)
@@ -57,6 +59,8 @@ class Packet:
         self.died_tick = None
 
         self.memory_sets = []
+
+        LOGGER.debug(f'Created packet {self} with path {self.path_nodes}')
 
     def check_and_update_path(self, arrived_node, tick):
         '''
@@ -127,7 +131,7 @@ class Packet:
             raise Exception('Something is off, both has_arrived AND has_dropped are marked true')
         else:
             if not self.memory_sets:
-                print('No memory sets were ever recorded!')
+                pass
             else:
                 # Start updating all memory sets
                 for memory_set in self.memory_sets:
@@ -484,6 +488,7 @@ class VaryingRelayNode(VaryingTransmitNode):
         self.neighbor_edge_list_updated = False
 
     def relay(self, network):
+        LOGGER.debug(f"Relaying from this node {self}")
         if not self.neighbor_ok_list_updated:
             self.update_neighbor_ok_list(network)
 
@@ -552,53 +557,48 @@ class RestrictedNode(VaryingRelayNode):
             self.data['dropped_packets'].append(packet)
             self.wait_queue.clear()
 
-class QNode(RestrictedNode):
+class RestrictedMovingNode(MovingNode):
+    '''
+    Node object that has `restrictions` imposed onto it, such as max buffer size.
+    '''
+    def __init__(self, node_type, step_value, mobility_model, max_buffer_size):
+        '''
+        :param max_buffer_size: Maximum number of Bytes (!) allowed in device buffer (queue).
+        '''
+        super().__init__(node_type, step_value, mobility_model)
+        self.max_buffer_size = max_buffer_size
+
+    def initalize_data(self):
+        super().initalize_data()
+        self.data.update({'dropped_packets': []})
+
+    def update_queue(self, network):
+        current_queue_size = self.get_queue_size()
+        while (current_queue_size < self.max_buffer_size):
+            if len(self.wait_queue) <= 0:
+                break
+            packet = self.wait_queue.pop()
+            current_queue_size += packet.size
+            self.queue.append(packet)
+
+        if len(self.wait_queue) > 0:
+            for packet in self.wait_queue:
+                packet.dropped(network.tick)
+            self.data['dropped_packets'].append(packet)
+            self.wait_queue.clear()
+
+
+class QNode(RestrictedMovingNode):
     '''
     This node will define all training, recording and updating methods
     for a Q-Network implementation.
     '''
-
-    class ReplayMemory:
-        def __init__(self, capacity):
-            self.memory = deque(maxlen=capacity)
-            self.counter = 0
-
-        def append(self, element):
-            self.memory.append(element)
-            self.counter += 1
-
-        def sample(self, sample_count):
-            '''
-            Sample replays that have been fully filled out
-            (no None values, etc)
-            '''
-            #TODO: Optimize
-            print("Getting sample")
-            sample_list = []
-            count = 0
-            error_count = 0
-            while(count < sample_count):
-                sample = random.sample(self.memory)
-                if not sample['next_state'] or not sample['reward']:
-                    error_count += 1
-                else:
-                    sample_list.append(sample)
-                    count += 1
-                if error_count >= 50:
-                    print('Error count exceeded 50')
-                    print(f'Memory list: {self.memory}')
-                    raise Exception('Exceeded allowed amount of tries, consider rewriting this method')
-            return random.sample(self.memory, sample_count)
-
-        def __len__(self):
-            return len(self.memory)
-
     def __init__(self, node_type, step_value, mobility_model, packet_size, gen_rate, max_buffer_size):
-        self.super.__init__(node_type, step_value, mobility_model, packet_size, gen_rate, max_buffer_size)
+        super().__init__(node_type, step_value, mobility_model, max_buffer_size)
 
         #TODO: Load configuration here
-        capacity = None  # Capacity for replay memory
-        self.max_neighbors = None  # This defines the input to the DQN, max_neighbors**2
+        capacity = 500  # Capacity for replay memory
+        self.max_neighbors = 4  # This defines the input to the DQN, max_neighbors**2
 
         self.GAMMA = 0.999 
         self.BATCH_SIZE = 20
@@ -612,7 +612,7 @@ class QNode(RestrictedNode):
         self.action_space = [0, 1]
         self.action_space_size = len(self.action_space)
 
-        self.replay_memory = ReplayMemory(capacity)
+        self.replay_memory = models.ReplayMemory(capacity)
 
         self.policy_net = models.PyTorchQNetwork()
         self.target_net = models.PyTorchQNetwork()
@@ -624,61 +624,63 @@ class QNode(RestrictedNode):
         self.target_net.eval()
 
         self.optimizer = optim.RMSprop(self.policy_net.parameters())
+        LOGGER.debug("Initiated Q-Node!")
+        time.sleep(2)
 
     def relay(self, network):
-        logger.debug(f'Relaying network from node: {self}')
+        LOGGER.debug(f'Relaying network from A Q-NODE node: {self}')
         self.state = self.get_state(network)
 
         epsilon_threshold = self.EPS_END + (self.EPS_START - self.EPS_END) * \
                 math.exp(-1 * self.steps_done / self.EPS_DECAY)
         self.steps_done += 1
 
-        if self.record_count == self.batch_size:
-            batch = self.replay_memory.sample(self.batch_size)
-            self.optimize_model()
+        self.optimize_model()
+
+        if random.random() > epsilon_threshold:
+            LOGGER.debug('Getting action from policy network')
+            LOGGER.debug(f'Raw output from policy_net(state): {self.policy_net(self.state)}')
+            selected_action = self.policy_net(state).max(1)[1].view(1, 1)
+            LOGGER.debug(f'Selected action from policy net: {selected_action}')
         else:
-            if random.random() > epsilon_threshold:
-                logger.debug('Getting action from policy network')
-                logger.debug(f'Raw output from policy_net(state): {self.policy_net(state)}')
-                selected_action = self.policy_net(state).max(1)[1].view(1, 1)
-                logger.debug(f'Selected action from policy net: {selected_action}')
-            else:
-                dont_offload = random.choice(self.action_space)  # if 0, dont offload, if 1, offload
+            dont_offload = random.choice(self.action_space)  # if 0, dont offload, if 1, offload
 
-            if self.queue:
-                packet = self.queue.pop()
+        if self.queue:
+            packet = self.queue.pop()
+            packet.next_node.receive(network, packet)
+
+            if not dont_offload:
                 packet.next_node.receive(network, packet)
+                self.data['relayed_packets'].append(packet)
+            else:
+                sat_node = network.get_sat_node()
+                # Create new path
+                try:
+                    new_path = random.choice(
+                            nx.all_shortest_paths(
+                                network, sat_node, packet.destination, weight="Channel"))
+                except nx.exception.NetworkXNoPath:
+                    print(f"No path from sat {sat_node} to dest {packet.destination}")
+                    raise
+                packet.recal_path(new_path)
+                sat_node.receive(packet)
 
-                if not dont_offload:
-                    packet.next_node.receive(network, packet)
-                    self.data['relayed_packets'].append(packet)
-                else:
-                    sat_node = network.get_sat_node()
-                    # Create new path
-                    try:
-                        new_path = random.choice(
-                                nx.all_shortest_paths(
-                                    network, sat_node, packet.destination, weight="Channel"))
-                    except nx.exception.NetworkXNoPath:
-                        print(f"No path from sat {sat_node} to dest {packet.destination}")
-                        raise
-                    packet.recal_path(new_path)
-                    sat_node.receive(packet)
+            memory_set = {'tick': torch.tensor([network.tick]), 'state': self.state, 'action': torch.tensor([action]), 
+                            'reward': None, 'next_state': None}
+            LOGGER.debug(f'Created memory_set: {memory_set}')
+            self.replay_memory.append(memory_set)
+            network.request_state(self, memory_set)
+            packet.reward_request(memory_set)
 
-                memory_set = {'tick': torch.tensor([network.tick]), 'state': self.state, 'action': torch.tensor([action]), 
-                                'reward': None, 'next_state': None}
-                logger.debug(f'Created memory_set: {memory_set}')
-                self.replay_memory.append(memory_set)
-                network.request_state(self, memory_set)
-                packet.reward_request(memory_set)
+            self.data['memory_set'].append(memory_set)
 
     def transmit(self, network):
         raise Exception('CURRENTLY NOT IMPLEMENTED, ONLY FOR RELAYING')
 
     def optimize_model(self):
-        logger.debug(f'Optimizing model for node {self}')
+        LOGGER.debug(f'Optimizing model for node {self}')
         if len(self.replay_memory) < self.BATCH_SIZE:
-            logger.warning('Replay memory does not contain enough data')
+            LOGGER.debug('Not enough replay memory, continuing..')
             return
 
         # Get a list of replay memories 
@@ -706,16 +708,17 @@ class QNode(RestrictedNode):
         self.optimizer.step()
 
     def get_state(self, network):
+        LOGGER.debug('Getting state')
         state = np.zeros(self.max_neighbors**2)  # Array consists of neighbors and their neighbors as well
         # Collect packet size info for all neighbors, and neighbor of neighbors
         index = 0
         for neighbor in nx.neighbors(network, self):
             if index >= len(state):
                 break
-            state[index](len(neighbor.queue))
+            state[index] = len(neighbor.queue)
             for neighbor_in_law in nx.neighbors(network, neighbor):
                 index+=1
-                state.append(len(neighbor_in_law.queue))
+                state[index] = len(neighbor_in_law.queue)
             index+=1
 
         print(f'State for {self} at tick {network.tick}: {state}')

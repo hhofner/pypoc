@@ -15,7 +15,7 @@ import seaborn as sns
 import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-from topology import Topology
+from pypoc.topology import Topology
 
 def get_filepath(filepath=None, sim_directory='./simulation_data'):
     if filepath is None:

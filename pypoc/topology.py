@@ -35,16 +35,18 @@ class Topology:
             movement = MobilityEnum.get_movement(configuration['nodes'][node]['movement'])
             parameters = configuration['nodes'][node]['params']
 
-
             # Create nodes
             for c in range(count):
-                if node_type == 'q-stations':
+                if node == 'q-stations':
+                    print(f'node_type:{node_type}')
+                    input('Creating New Q-Station Node at topology.py, all okay?')
                     new_node = QNode(node_type=node_type,
                                     step_value=0,
-                                    mobility_mode=movement,
+                                    mobility_model=movement,
                                     packet_size=packet_size,
                                     gen_rate=parameters['generation-rate'],
                                     max_buffer_size=parameters['buffer-size'])
+                    new_node.set_name(node)
                 else:
                     new_node = RestrictedNode(node_type=node_type,
                                               step_value=0,
@@ -73,6 +75,9 @@ class Topology:
             raise Exception('No available nodes to make links.')
 
         def is_distance_ok(node, node2):
+            if node.name == 'q-stations' or node2.name == 'q-stations':
+                return True
+
             if node.name == 'base-stations' and \
                 node2.name == 'base-stations':
                 return True

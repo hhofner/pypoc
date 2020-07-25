@@ -27,9 +27,9 @@ import numpy as np
 import toml
 from tqdm import tqdm # Progress Bar
 from scipy.spatial import distance
-from edgehandler import EdgeHandler
-from topology import Topology
-from node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode, RestrictedNode, QNode
+from pypoc.edgehandler import EdgeHandler
+from pypoc.topology import Topology
+from pypoc.node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode, RestrictedNode, QNode
 
 logging.basicConfig(level=logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
@@ -225,7 +225,7 @@ class PyPocNetwork(nx.DiGraph):
 
     def _record_states(self):
         if not self.wanting_states:
-            print('No nodes have requested wanting states!')
+            pass
         else:
             for node in self.wanting_states:
                 # First get the state of the node
@@ -240,7 +240,7 @@ class PyPocNetwork(nx.DiGraph):
         LOGGER.debug("Running network with these parameters")
         LOGGER.debug(f"Node count: {len(self.nodes)}")
         for node in self.nodes:
-            LOGGER.debug(f'Node: {node}')
+            LOGGER.debug(f'Node: {node} -- Type:{type(node)}')
 
         time.sleep(5)
     ###################################################################################################
