@@ -3,17 +3,23 @@ This module provides a class and methods to build the users desired topology.
 The class is populated by reading the configuration file `setup.toml`.
 '''
 
+import logging
 import numpy as np
 import toml
-from node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode, RestrictedNode
-from mobility import MobilityEnum
+from pypoc.node import (Packet, Node, VaryingTransmitNode, 
+                VaryingRelayNode, MovingNode, RestrictedNode,
+                QNode)
+from pypoc.mobility import MobilityEnum
 
 seed = 62
 np.random.seed(seed)  # Randomizes UE positions
 
+logging.basicConfig(level=logging.DEBUG)
+LOGGER = logging.getLogger(__name__)
 
 class Topology:
     def __init__(self, configuration):
+        LOGGER.debug(f"Topology with configuration: {configuration}")
         #print('Initializing topology configuration...')
         packet_size = configuration['global']['packet-size']
         area = (configuration['area']['width'], configuration['area']['height'])
@@ -29,15 +35,24 @@ class Topology:
             movement = MobilityEnum.get_movement(configuration['nodes'][node]['movement'])
             parameters = configuration['nodes'][node]['params']
 
+
             # Create nodes
             for c in range(count):
-                new_node = RestrictedNode(node_type=node_type,
-                                          step_value=0,
-                                          mobility_model=movement,
-                                          packet_size=packet_size,
-                                          gen_rate=parameters['generation-rate'],
-                                          max_buffer_size=parameters['buffer-size'])
-                new_node.set_name(node)
+                if node_type == 'q-stations':
+                    new_node = QNode(node_type=node_type,
+                                    step_value=0,
+                                    mobility_mode=movement,
+                                    packet_size=packet_size,
+                                    gen_rate=parameters['generation-rate'],
+                                    max_buffer_size=parameters['buffer-size'])
+                else:
+                    new_node = RestrictedNode(node_type=node_type,
+                                              step_value=0,
+                                              mobility_model=movement,
+                                              packet_size=packet_size,
+                                              gen_rate=parameters['generation-rate'],
+                                              max_buffer_size=parameters['buffer-size'])
+                    new_node.set_name(node)
                 new_node.position = self.get_position(position, area, c)
                 self.node_dict[node].append(new_node)
 

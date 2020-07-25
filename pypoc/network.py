@@ -10,8 +10,9 @@ contains all the metadata of the Network.
 __author__ = 'Hans Hofner'
 
 import itertools
-import itertools
-import pickle
+import logging
+import random
+import time
 import csv
 import os
 from copy import copy
@@ -28,8 +29,10 @@ from tqdm import tqdm # Progress Bar
 from scipy.spatial import distance
 from edgehandler import EdgeHandler
 from topology import Topology
-from node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode, RestrictedNode
+from node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode, RestrictedNode, QNode
 
+logging.basicConfig(level=logging.DEBUG)
+LOGGER = logging.getLogger(__name__)
 
 class NetworkData:
     def __init__(self):
@@ -108,6 +111,8 @@ class PyPocNetwork(nx.DiGraph):
 
         self.edge_handler = EdgeHandler(configuration)
 
+        self.wanting_states = []
+
     def initialize_step_values(self):
         '''
         This method defines the step value for the
@@ -161,6 +166,14 @@ class PyPocNetwork(nx.DiGraph):
             if node.node_type == type_of_node:
                 count += 1
         return count
+
+    def get_sat_node(self):
+        sat_nodes = []
+        for node in self.nodes:
+            if node.name == 'leo-satellites':
+                sat_nodes.append(node)
+
+        return random.choice(sat_nodes)
 
     def collect_node_data(self):
         '''
@@ -223,10 +236,18 @@ class PyPocNetwork(nx.DiGraph):
 
         self.wanting_states.clear()
 
+    def preview(self):
+        LOGGER.debug("Running network with these parameters")
+        LOGGER.debug(f"Node count: {len(self.nodes)}")
+        for node in self.nodes:
+            LOGGER.debug(f'Node: {node}')
+
+        time.sleep(5)
     ###################################################################################################
     # Main Loop #######################################################################################
     ###################################################################################################
     def run_main_loop(self, minutes, **kwargs):
+        self.preview()
         seconds = minutes * 60
         ticks = int(seconds / self.step_value)
         #answer = input(f'Please confirm run. {ticks} ticks, ok? ([y]/n) ')

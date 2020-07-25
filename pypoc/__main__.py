@@ -2,13 +2,14 @@
 Main entry script for PyPoc. Reads the config and
 creates & runs a Network.
 '''
-import network
 import toml
 import argparse
-import plotter
 import shutil
 from pathlib import Path
 from datetime import datetime, timedelta
+
+import pypoc.network
+import pypoc.plotter
 
 __author__ = 'Hans Hofner'
 
