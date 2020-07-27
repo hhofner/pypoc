@@ -1,3 +1,4 @@
+import random
 from collections import deque
 
 import torch
@@ -39,23 +40,17 @@ class ReplayMemory:
         Sample replays that have been fully filled out
         (no None values, etc)
         '''
-        #TODO: Optimize
-        print("Getting sample")
-        sample_list = []
+        print("Getting samples")
+        sample_list = random.sample(self.memory, sample_count)
+        samples = []
         count = 0
-        error_count = 0
-        while(count < sample_count):
-            sample = random.sample(self.memory)
-            if not sample['next_state'] or not sample['reward']:
-                error_count += 1
+        for s in sample_list:
+            if  s['next_state'] is None or s['reward'] is None:
+                continue
             else:
-                sample_list.append(sample)
-                count += 1
-            if error_count >= 50:
-                print('Error count exceeded 50')
-                print(f'Memory list: {self.memory}')
-                raise Exception('Exceeded allowed amount of tries, consider rewriting this method')
-        return random.sample(self.memory, sample_count)
+                samples.append(s)
+
+        return samples
 
     def __len__(self):
         return len(self.memory)

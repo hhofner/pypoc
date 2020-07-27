@@ -18,6 +18,7 @@ import logging
 import pypoc.models as models
 import torch
 import torch.optim as optim
+import torch.nn.functional as F
 import networkx as nx
 
 logging.basicConfig(level=logging.DEBUG)
@@ -138,7 +139,7 @@ class Packet:
                     if self._has_arrived:
                         memory_set['reward'] = torch.tensor([1/self.delay])
                     else:
-                        memory_set['reward'] = torch.tensor([-self.delay])
+                        memory_set['reward'] = torch.tensor([float(-self.delay)])
             self.memory_sets.clear()
 
     @property
@@ -627,6 +628,11 @@ class QNode(RestrictedMovingNode):
         LOGGER.debug("Initiated Q-Node!")
         time.sleep(2)
 
+    def initalize_data(self):
+        super().initalize_data()
+        self.data.update({'memory_set': []})
+
+
     def relay(self, network):
         LOGGER.debug(f'Relaying network from A Q-NODE node: {self}')
         self.state = self.get_state(network)
@@ -639,17 +645,19 @@ class QNode(RestrictedMovingNode):
 
         if random.random() > epsilon_threshold:
             LOGGER.debug('Getting action from policy network')
-            LOGGER.debug(f'Raw output from policy_net(state): {self.policy_net(self.state)}')
-            selected_action = self.policy_net(state).max(1)[1].view(1, 1)
-            LOGGER.debug(f'Selected action from policy net: {selected_action}')
+            self.policy_net = self.policy_net.float()
+            LOGGER.debug(f'Raw output from policy_net(state): {self.policy_net(self.state.float())}')
+            selected_action = self.policy_net(self.state.float()).max(0)[1].view(1, 1)
+            offload = bool(selected_action[0][0])
+            LOGGER.debug(f'Selected action from policy net: {"offload" if offload else "dont_offload"}')
         else:
-            dont_offload = random.choice(self.action_space)  # if 0, dont offload, if 1, offload
+            selected_action = random.choice(self.action_space)
+            offload = bool(selected_action)  # if 0, dont offload, if 1, offload
 
         if self.queue:
             packet = self.queue.pop()
-            packet.next_node.receive(network, packet)
 
-            if not dont_offload:
+            if not offload:
                 packet.next_node.receive(network, packet)
                 self.data['relayed_packets'].append(packet)
             else:
@@ -657,15 +665,16 @@ class QNode(RestrictedMovingNode):
                 # Create new path
                 try:
                     new_path = random.choice(
-                            nx.all_shortest_paths(
-                                network, sat_node, packet.destination, weight="Channel"))
+                            list(nx.all_shortest_paths(
+                                network, sat_node, packet.destination, weight="Channel")))
                 except nx.exception.NetworkXNoPath:
                     print(f"No path from sat {sat_node} to dest {packet.destination}")
                     raise
                 packet.recal_path(new_path)
-                sat_node.receive(packet)
+                sat_node.receive(network, packet)
 
-            memory_set = {'tick': torch.tensor([network.tick]), 'state': self.state, 'action': torch.tensor([action]), 
+            memory_set = {'tick': torch.tensor([network.tick]), 'state': self.state, 
+                            'action': torch.tensor([[selected_action]]), 
                             'reward': None, 'next_state': None}
             LOGGER.debug(f'Created memory_set: {memory_set}')
             self.replay_memory.append(memory_set)
@@ -685,15 +694,17 @@ class QNode(RestrictedMovingNode):
 
         # Get a list of replay memories 
         transitions = self.replay_memory.sample(self.BATCH_SIZE)
+        LOGGER.debug(f'Size of samples retrieved: {len(transitions)}')
         # Turn into list of list (tensor?)
-        state_batch = torch.cat([t['state'] for t in t])
-        action_batch = torch.cat([t['action'] for t in t])
-        reward_batch = torch.cat([t['reward'] for t in t])
-        next_state_batch = torch.cat([t['next_state'] for t in t])
+        state_batch = torch.cat([t['state'] for t in transitions]).reshape(len(transitions), self.max_neighbors**2)
+        action_batch = torch.cat([t['action'] for t in transitions])
+        LOGGER.debug(f'Reward batch: {[t["reward"] for t in transitions]}')
+        reward_batch = torch.cat([t['reward'] for t in transitions]).reshape(len(transitions), 1)
+        next_state_batch = torch.cat([t['next_state'] for t in transitions]).reshape(len(transitions), self.max_neighbors**2)
 
-        state_action_values = policy_net(state_batch).gather(1, action_batch)
+        state_action_values = self.policy_net(state_batch.float()).gather(1, action_batch)
         
-        next_state_values = target_net(next_state_batch).max(1)[0].detach()
+        next_state_values = self.target_net(next_state_batch.float()).max(1)[0].detach()
 
         expected_state_action_values = (next_state_values * self.GAMMA) + reward_batch
 
@@ -703,12 +714,14 @@ class QNode(RestrictedMovingNode):
         # Optimize the model
         self.optimizer.zero_grad()
         loss.backward()
-        for param in policy_net.parameters():
+        for param in self.policy_net.parameters():
             param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
 
+        LOGGER.debug('Finished Optimizing!')
+
     def get_state(self, network):
-        LOGGER.debug('Getting state')
+        LOGGER.debug(f'Getting state for node {self}')
         state = np.zeros(self.max_neighbors**2)  # Array consists of neighbors and their neighbors as well
         # Collect packet size info for all neighbors, and neighbor of neighbors
         index = 0
@@ -721,6 +734,6 @@ class QNode(RestrictedMovingNode):
                 state[index] = len(neighbor_in_law.queue)
             index+=1
 
-        print(f'State for {self} at tick {network.tick}: {state}')
-        return torch.from_numpy(state)
-
+        LOGGER.debug(f'State for {self} at tick {network.tick}: {state}')
+        state = torch.from_numpy(state)
+        return state

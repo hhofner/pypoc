@@ -39,7 +39,6 @@ class Topology:
             for c in range(count):
                 if node == 'q-stations':
                     print(f'node_type:{node_type}')
-                    input('Creating New Q-Station Node at topology.py, all okay?')
                     new_node = QNode(node_type=node_type,
                                     step_value=0,
                                     mobility_model=movement,
