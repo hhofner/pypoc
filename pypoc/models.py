@@ -1,4 +1,5 @@
 import random
+import logging
 from collections import deque
 
 import torch
@@ -6,6 +7,9 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import torchvision.transforms as T
+
+logging.basicConfig(level=logging.ERROR)
+LOGGER = logging.getLogger(__name__)
 
 class PyTorchQNetwork(nn.Module):
     def __init__(self):
@@ -40,7 +44,7 @@ class ReplayMemory:
         Sample replays that have been fully filled out
         (no None values, etc)
         '''
-        print("Getting samples")
+        LOGGER.debug(f'Current samples: {self.memory}')
         sample_list = random.sample(self.memory, sample_count)
         samples = []
         count = 0
@@ -54,5 +58,3 @@ class ReplayMemory:
 
     def __len__(self):
         return len(self.memory)
-
-

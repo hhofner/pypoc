@@ -14,6 +14,8 @@ import math
 import random
 import itertools
 import logging
+import config  # for model
+import os
 
 import pypoc.models as models
 import torch
@@ -21,8 +23,10 @@ import torch.optim as optim
 import torch.nn.functional as F
 import networkx as nx
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.ERROR)
 LOGGER = logging.getLogger(__name__)
+
+np.random.seed(11)
 
 class Packet:
     arrived_count = 0
@@ -98,7 +102,6 @@ class Packet:
                     f' info from Packet {self} arrived method')
         if not self._has_arrived:
             Packet.arrived_count += 1
-            # print(f'{self} arrived!')
             self.died_tick = tick
             self.delay = self.died_tick - self.born_tick
         self._has_arrived = True
@@ -200,7 +203,6 @@ class Node:
         '''
         Update packet path and append to node queue.
         '''
-        # print(f'{self} received {received_packet}')
         received_packet.check_and_update_path(self, network.tick)
         self.wait_queue.append(received_packet)
         if self.node_type == 2:
@@ -302,7 +304,7 @@ class Node:
                 try:
                     path = nx.shortest_path(network, self, dest, weight='Channel')
                 except nx.exception.NetworkXNoPath:
-                    #print(f'No path from {self} -> {dest}, next_hop_tries: {next_hop_tries}')
+                    LOGGER.warning(f'No path from {self} -> {dest}, next_hop_tries: {next_hop_tries}')
                     next_hop_tries += 1
                 else:
                     break
@@ -312,7 +314,7 @@ class Node:
                     path = nx.shortest_path(network, next_hop, dest, weight='Channel')
                     path = [self] + path
                 except nx.exception.NetworkXNoPath:
-                    #print(f'No path {self} -> {dest}, next_hop_tries: {next_hop_tries}')
+                    LOGGER.warning(f'No path {self} -> {dest}, next_hop_tries: {next_hop_tries}')
                     next_hop_tries += 1
                 else:
                     break
@@ -429,6 +431,7 @@ class VaryingTransmitNode(MovingNode):
         '''
         if network.tick > self.next_gen_time:
             #number_of_packets = np.random.normal(self.gen_rate, scale=self.gen_rate/4) / self.packet_size
+            #gen_rate = np.random.normal(self.gen_rate)
             number_of_packets = self.gen_rate / self.packet_size
             if number_of_packets < 1:
                 self._leftover_packets = number_of_packets
@@ -508,9 +511,6 @@ class VaryingRelayNode(VaryingTransmitNode):
                     packet.next_node.receive(network, packet)
                     self.data['relayed_packets'].append(packet)
             except KeyError:
-                #print(f'Tick: {network.tick}')
-                #print(f'Relay {self} wants to send {packet} to {packet.next_node}')
-
                 # TODO: Develop retry mechanism
                 # Drop packet if not possible to get
                 packet = self.queue.pop(); packet.dropped(network.tick)
@@ -597,16 +597,20 @@ class QNode(RestrictedMovingNode):
     def __init__(self, node_type, step_value, mobility_model, packet_size, gen_rate, max_buffer_size):
         super().__init__(node_type, step_value, mobility_model, max_buffer_size)
 
-        #TODO: Load configuration here
-        capacity = 500  # Capacity for replay memory
-        self.max_neighbors = 4  # This defines the input to the DQN, max_neighbors**2
+        self.TRAINING_RUN = True
 
-        self.GAMMA = 0.999 
-        self.BATCH_SIZE = 20
+        configuration = config.intro_model
+        capacity = configuration['capacity']  # Capacity for replay memory
+        self.max_neighbors = configuration['max_neighbors']  # This defines the input to the DQN, max_neighbors**2
 
-        self.EPS_START = 0.9 # Helps the decay in random selection
-        self.EPS_END = 0.05  # Helps the decay in random selection
-        self.EPS_DECAY = 200
+        self.GAMMA = configuration['gamma'] 
+        self.BATCH_SIZE = configuration['batch_size'] 
+
+        self.EPS_START = configuration['eps_start'] # Helps the decay in random selection
+        self.EPS_END = configuration['eps_end']  # Helps the decay in random selection
+        self.EPS_DECAY = configuration['eps_decay']
+
+        self.NETWORK_UPDATE_TICK = configuration['net_tick']
 
         self.steps_done = 0
 
@@ -615,9 +619,14 @@ class QNode(RestrictedMovingNode):
 
         self.replay_memory = models.ReplayMemory(capacity)
 
-        self.policy_net = models.PyTorchQNetwork()
-        self.target_net = models.PyTorchQNetwork()
+        if os.path.isfile('./QOFFLOADING'):
+            self.policy_net = models.PyTorchQNetwork()
+            policy_net_state_dict = torch.load('./QOFFLOADING')
+            self.policy_net.load_state_dict(policy_net_state_dict)
+        else:
+            self.policy_net = models.PyTorchQNetwork()
 
+        self.target_net = models.PyTorchQNetwork()
         # Copy the `state_dict` (weights and bias) from policy to target
         self.target_net.load_state_dict(self.policy_net.state_dict())
 
@@ -631,7 +640,7 @@ class QNode(RestrictedMovingNode):
     def initalize_data(self):
         super().initalize_data()
         self.data.update({'memory_set': []})
-
+        self.data.update({'loss':[]})
 
     def relay(self, network):
         LOGGER.debug(f'Relaying network from A Q-NODE node: {self}')
@@ -668,7 +677,7 @@ class QNode(RestrictedMovingNode):
                             list(nx.all_shortest_paths(
                                 network, sat_node, packet.destination, weight="Channel")))
                 except nx.exception.NetworkXNoPath:
-                    print(f"No path from sat {sat_node} to dest {packet.destination}")
+                    LOGGER.error(f"No path from sat {sat_node} to dest {packet.destination}")
                     raise
                 packet.recal_path(new_path)
                 sat_node.receive(network, packet)
@@ -683,33 +692,41 @@ class QNode(RestrictedMovingNode):
 
             self.data['memory_set'].append(memory_set)
 
+        if not network.tick % self.NETWORK_UPDATE_TICK:
+            LOGGER.debug('Updating target network')
+            self.target_net.load_state_dict(self.policy_net.state_dict())
+
     def transmit(self, network):
         raise Exception('CURRENTLY NOT IMPLEMENTED, ONLY FOR RELAYING')
 
     def optimize_model(self):
-        LOGGER.debug(f'Optimizing model for node {self}')
         if len(self.replay_memory) < self.BATCH_SIZE:
             LOGGER.debug('Not enough replay memory, continuing..')
             return
 
         # Get a list of replay memories 
         transitions = self.replay_memory.sample(self.BATCH_SIZE)
+        if len(transitions) == 0:
+            LOGGER.warning('Not enough transitions were given')
+            return
         LOGGER.debug(f'Size of samples retrieved: {len(transitions)}')
+        LOGGER.debug(f'Optimizing model for node {self}')
         # Turn into list of list (tensor?)
         state_batch = torch.cat([t['state'] for t in transitions]).reshape(len(transitions), self.max_neighbors**2)
         action_batch = torch.cat([t['action'] for t in transitions])
-        LOGGER.debug(f'Reward batch: {[t["reward"] for t in transitions]}')
         reward_batch = torch.cat([t['reward'] for t in transitions]).reshape(len(transitions), 1)
         next_state_batch = torch.cat([t['next_state'] for t in transitions]).reshape(len(transitions), self.max_neighbors**2)
 
+        # Tensor containing the q-value for every action taken in every state
         state_action_values = self.policy_net(state_batch.float()).gather(1, action_batch)
-        
+
         next_state_values = self.target_net(next_state_batch.float()).max(1)[0].detach()
 
         expected_state_action_values = (next_state_values * self.GAMMA) + reward_batch
 
         # Compute Huber loss
         loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
+        self.data['loss'].append(loss.tolist())
 
         # Optimize the model
         self.optimizer.zero_grad()
@@ -730,6 +747,8 @@ class QNode(RestrictedMovingNode):
                 break
             state[index] = len(neighbor.queue)
             for neighbor_in_law in nx.neighbors(network, neighbor):
+                if index >= len(state) - 1:
+                    break
                 index+=1
                 state[index] = len(neighbor_in_law.queue)
             index+=1
@@ -737,3 +756,6 @@ class QNode(RestrictedMovingNode):
         LOGGER.debug(f'State for {self} at tick {network.tick}: {state}')
         state = torch.from_numpy(state)
         return state
+
+    def __del__(self):
+        torch.save(self.policy_net.state_dict(), './QOFFLOADING')

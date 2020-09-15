@@ -12,6 +12,8 @@ import math
 WALKING_SPEED = 1.4 #m/s
 UAV_SPEED = 5.0 #m/s
 
+np.random.seed(11)
+
 class Movement:
     def __init__(self, network, node):
         self.target_position = None
@@ -50,7 +52,7 @@ class MobilityEnum:
         def get_new_direction(self):
             #print('Geting new direction')
             position = self.node.position
-            target_x, target_y = np.random.normal(scale=0.75, size=(2,))
+            target_x, target_y = np.random.normal(scale=0.65, size=(2,))
             target_x = target_x*self.network.meta.area[0]
             target_y = target_y*self.network.meta.area[1]
             vector_to_target = (target_x - position[0], target_y - position[1])

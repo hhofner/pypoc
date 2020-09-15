@@ -14,18 +14,18 @@ from pypoc.mobility import MobilityEnum
 seed = 62
 np.random.seed(seed)  # Randomizes UE positions
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.ERROR)
 LOGGER = logging.getLogger(__name__)
 
 class Topology:
     def __init__(self, configuration):
         LOGGER.debug(f"Topology with configuration: {configuration}")
-        #print('Initializing topology configuration...')
+        LOGGER.debug('Initializing topology configuration...')
         packet_size = configuration['global']['packet-size']
         area = (configuration['area']['width'], configuration['area']['height'])
 
         self.node_dict = {}  # Dict of TYPE of Nodes (src-node, etc)
-        #print('Creating node objects...')
+        LOGGER.debug('Creating node objects at topology class...')
         for node in configuration['nodes'].keys():
             self.node_dict[node] = []  # Make an entry for different type of node
             node_type = configuration['nodes'][node]['type']
@@ -38,7 +38,7 @@ class Topology:
             # Create nodes
             for c in range(count):
                 if node == 'q-stations':
-                    print(f'node_type:{node_type}')
+                    LOGGER.debug(f'node_type:{node_type}')
                     new_node = QNode(node_type=node_type,
                                     step_value=0,
                                     mobility_model=movement,

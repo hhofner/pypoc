@@ -6,24 +6,24 @@ import argparse
 import shutil
 import time
 
-NUMBER_OF_SOURCE_NODES = list(range(100, 200))
+import numpy as np
+
+NUMBER_OF_SOURCE_NODES = np.arange(80, 260, 10)
 SIMULATION_RUN_NAME = 'BASELINE'
 
 error_files = []
 
 config_files = []
 print(f'{"$"*30} Creating Config Files {"$"*30}')
-time.sleep(3)
 for num_src_nodes in NUMBER_OF_SOURCE_NODES:
     # Copy file
-    new_config_name = f'config_{num_src_nodes}.toml'
+    new_config_name = f'baseline_{num_src_nodes}.toml'
     if os.path.isfile(new_config_name):
         continue
     shutil.copyfile('config.toml', new_config_name)
     print(f'Creating copy of config: {new_config_name}')
     new_config = toml.load(new_config_name)
-    new_config['nodes']['src-nodes']['count'] = num_src_nodes
-    new_config['nodes']['dest-nodes']['count'] = int(num_src_nodes/3)
+    new_config['nodes']['src-nodes']['count'] = int(num_src_nodes)
     new_config['title'] = SIMULATION_RUN_NAME + f'_{num_src_nodes}'
 
     # Save it back to file

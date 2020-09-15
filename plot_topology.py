@@ -2,6 +2,7 @@ import os
 import csv
 import time
 import logging
+import argparse
 from collections import defaultdict
 
 import toml
@@ -68,4 +69,7 @@ def plot_network_graph(config_filepath=None):
 
 if __name__ == '__main__':
 
-    plot_network_graph()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--files')
+    args = parser.parse_args()
+    plot_network_graph(args.files)

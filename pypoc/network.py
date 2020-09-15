@@ -31,7 +31,7 @@ from pypoc.edgehandler import EdgeHandler
 from pypoc.topology import Topology
 from pypoc.node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode, RestrictedNode, QNode
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.ERROR)
 LOGGER = logging.getLogger(__name__)
 
 class NetworkData:
@@ -68,8 +68,12 @@ class NetworkData:
         # Value of end time of data run
         self.data['end_time_value'] = 0
 
+        self.data['drop_rate_list'] = []
+        self.data['drop_rate_value'] = 0
         # Value of current packet drop rate
         self.data['packet_drop_rate_value'] = 0
+
+        self.data['node_count_list'] = []
 
     def data_save_to_file(self, network, filename=None, data_filepath=None, config_file=None):
         '''
@@ -124,7 +128,7 @@ class PyPocNetwork(nx.DiGraph):
             try:
                 bandwidth = edge[2]['Bandwidth']
             except KeyError:
-                print(f'Could not find Bandwidth edge attribute for edge {edge}')
+                LOGGER.error(f'Could not find Bandwidth edge attribute for edge {edge}')
             else:
                 if highest_bandwidth is None:
                     highest_bandwidth = edge[2]['Bandwidth']
@@ -150,6 +154,14 @@ class PyPocNetwork(nx.DiGraph):
             self.meta.data['throughput_value'] = overall_throughput
         except:
             raise
+
+    def update_drop_rate(self):
+        if Packet.dropped_count:
+            overall_drop_rate = Packet.generated_count / Packet.dropped_count
+        else:
+            overall_drop_rate = 0
+        self.meta.data['drop_rate_list'].append(overall_drop_rate)
+        self.meta.data['drop_rate_value'] = overall_drop_rate
 
     def get(self, key, node1, node2):
         return self[node1][node2][str(key)]
@@ -205,6 +217,9 @@ class PyPocNetwork(nx.DiGraph):
         self.meta.data['packet_arrive_value'] = Packet.arrived_count
         self.meta.data['packet_generated_value'] = Packet.generated_count
 
+    def collect_node_count(self):
+        self.meta.data['node_count_list'].append(len(self.nodes))
+
     # TODO: This needs to be addressed...perhaps in EdgeHandler?
     def update_channel_loads(self):
         for edge in self.edges:
@@ -254,8 +269,9 @@ class PyPocNetwork(nx.DiGraph):
         #if answer == 'n':
         #    print('Did not run'); return
         self.meta.data['start_time_value'] = datetime.now()
-        print(f'~~~~ Running {self.meta.title} for {ticks} time steps ~~~~')
+        LOGGER.debug(f'~~~~ Running {self.meta.title} for {ticks} time steps ~~~~')
         for self.tick in tqdm(range(1, ticks+1)):
+            self.collect_node_count()
             # print(f'\n~~~~ TIME {self.tick} ~~~~\n')
             for node in self.nodes:
                 # print(f'---->: {node} :<----')
@@ -263,6 +279,7 @@ class PyPocNetwork(nx.DiGraph):
 
             self.update_channel_loads()
             self.update_throughput()
+            self.update_drop_rate()
             self.edge_handler.handle_edges(self)
             self._record_states()
             # print(f'Tick {self.tick}')
@@ -304,7 +321,24 @@ class PyPocNetwork(nx.DiGraph):
 
         # Get minutes
         minutes = configuration['global']['minutes']
-        self.run_main_loop(minutes, **kwargs)
+        try:
+            self.run_main_loop(minutes, **kwargs)
+        except KeyboardInterrupt:
+            if 'filename' in kwargs.keys():
+                simulation_filename = kwargs['filename']
+            # Postprocessing methods here #
+            self.meta.data['end_time_value'] = datetime.now()
+            self.collect_node_data()
+            self.collect_packet_data()
+            self.meta.data_save_to_file(self, simulation_filename)
+
+            print(f'########### FINISH ###########')
+            print(f'\tGENERATED PACKETS: {Packet.generated_count}')
+            print(f'\tARRIVED PACKETS: {Packet.arrived_count}')
+            print(f'\tDROPPED PACKETS: {Packet.dropped_count}')
+            print(f'\tPACKET LOSS RATE: {Packet.dropped_count/Packet.generated_count}')
+            print(f'\tTIME DIFFERENCE: {self.meta.data["end_time_value"] - self.meta.data["start_time_value"]}')
+            print(f'\tOVERALL THROUGHPUT: {self.meta.data["throughput_value"]/1e3} KBps')
 
 
 if __name__ == '__main__':
