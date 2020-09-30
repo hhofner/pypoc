@@ -599,7 +599,7 @@ class QNode(RestrictedMovingNode):
 
         self.TRAINING_RUN = True
 
-        configuration = config.intro_model
+        configuration = config.surgeon_model
         capacity = configuration['capacity']  # Capacity for replay memory
         self.max_neighbors = configuration['max_neighbors']  # This defines the input to the DQN, max_neighbors**2
 

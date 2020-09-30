@@ -8,7 +8,7 @@ import time
 
 import numpy as np
 
-NUMBER_OF_SOURCE_NODES = np.arange(200, 260, 20)
+NUMBER_OF_SOURCE_NODES = np.arange(200, 260, 5)
 SIMULATION_RUN_NAME = 'Q-OFFLOADING'
 
 error_files = []
