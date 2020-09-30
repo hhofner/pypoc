@@ -15,7 +15,7 @@ import seaborn as sns
 import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-from topology import Topology
+from pypoc.topology import Topology
 
 def get_filepath(filepath=None, sim_directory='./simulation_data'):
     if filepath is None:
@@ -223,6 +223,7 @@ def plot_throughputs():
     print('Collecting batches')
     # Get all CSV files and put them into batches
     for filename in os.listdir(dirpath):
+        print(filename)
         if filename[-3:] == 'csv':
             batch_name = filename[:filename.index('_')]
             batch_sets[batch_name].append(os.path.join(dirpath, filename))
@@ -252,6 +253,7 @@ def plot_throughputs():
 
     ax.set_title(f'Network Throughput')
     ax.set_ylabel(f'bits-per-second')
+    plt.ylim(0.5e7, 2e7)
     plt.legend()
     plt.show()
 
@@ -325,29 +327,29 @@ def plot_network_graph(config_filepath=None):
     for node in temp_graph.nodes:
         positions[node] = [float(node.position[0]), float(node.position[1])]
         if node.name == 'src-nodes':
-            node_colors.append('blue')
+            node_colors.append('royalblue')
             node_sizes.append(150)
         if node.name == 'dest-nodes':
-            node_colors.append('red')
+            node_colors.append('firebrick')
             node_sizes.append(150)
         if node.name == 'base-stations':
-            node_colors.append('yellow')
+            node_colors.append('goldenrod')
             node_sizes.append(450)
         if node.name == 'uav-base-stations':
-            node_colors.append('green')
+            node_colors.append('darkgreen')
             node_sizes.append(360)
         if node.name == 'leo-satellites':
-            node_colors.append('brown')
+            node_colors.append('orchid')
             node_sizes.append(560)
-    nx.draw_networkx(temp_graph, node_color=node_colors, pos=positions, arrows=True, with_labels=True, node_size=node_sizes)
-    #nx.draw_networkx_nodes(temp_graph, node_color=node_colors, pos=positions, node_size=node_sizes)
+    #nx.draw_networkx(temp_graph, node_color=node_colors, pos=positions, arrows=True, with_labels=False, node_size=node_sizes)
+    nx.draw_networkx_nodes(temp_graph, node_color=node_colors, pos=positions, node_size=node_sizes)
 
     patches = []
-    patches.append(mpatches.Patch(color='blue', label='Source UE\'s'))
-    patches.append(mpatches.Patch(color='red', label='Destination UE\'s'))
-    patches.append(mpatches.Patch(color='yellow', label='Base Station\'s'))
-    patches.append(mpatches.Patch(color='green', label='UAV Base Station\'s'))
-    patches.append(mpatches.Patch(color='brown', label='LEO Satellite\'s'))
+    patches.append(mpatches.Patch(color='royalblue', label='Source UE\'s'))
+    patches.append(mpatches.Patch(color='firebrick', label='Destination UE\'s'))
+    patches.append(mpatches.Patch(color='goldenrod', label='Base Station\'s'))
+    patches.append(mpatches.Patch(color='darkgreen', label='UAV Base Station\'s'))
+    patches.append(mpatches.Patch(color='orchid', label='LEO Satellite\'s'))
     plt.legend(handles=patches)
     plt.show()
 

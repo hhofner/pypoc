@@ -1,0 +1,3 @@
+'''
+Fetches configuration for simulation
+'''
