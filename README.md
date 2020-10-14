@@ -4,7 +4,8 @@ A Simplified Discrete Event Simulator for Heterogeneous Wireless Networks.
 ## Installation Steps
 1. Clone this repo. 
 2. Ensure a Python version of 3.6 or higher.
-3. Install the package dependencies:
+3. Install conda and pip.
+4. Create a new conda env with:
 ```
 pip3 -r requirements.txt 
 ```
