@@ -7,8 +7,8 @@ import logging
 import numpy as np
 import toml
 from pypoc.node import (Packet, Node, VaryingTransmitNode, 
-                VaryingRelayNode, MovingNode, RestrictedNode,
-                QNode)
+                VaryingRelayNode, MovingNode, RestrictedNode)
+from pypoc.qnode import QNode
 from pypoc.mobility import MobilityEnum
 
 seed = 62
