@@ -12,10 +12,10 @@ pip3 -r requirements.txt
 ## Usage
 To run the simulation:
 1. Edit the configuration files: `config.toml` and `config.py`
-2. Run the script:
+2. Run:
 
 ```
-bash run_pypoc.sh
+python -m pypoc
 ```
 
 ## Configuration
