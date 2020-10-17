@@ -29,7 +29,8 @@ from tqdm import tqdm # Progress Bar
 from scipy.spatial import distance
 from pypoc.edgehandler import EdgeHandler
 from pypoc.topology import Topology
-from pypoc.node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode, RestrictedNode, QNode
+from pypoc.node import Packet, Node, VaryingTransmitNode, VaryingRelayNode, MovingNode, RestrictedNode
+from pypoc.qnode import QNode
 
 logging.basicConfig(level=logging.ERROR)
 LOGGER = logging.getLogger(__name__)
@@ -85,7 +86,7 @@ class NetworkData:
             filename = f'{self.title}_{self.data["start_time_value"].strftime("%d%b%y_%H_%M_%S")}.csv'
 
         if data_filepath is None:
-            data_filepath = f'./simulation_data/' + filename
+            data_filepath = f'./output_data/' + filename
 
         with open(data_filepath, mode='w') as csvfile:
             writer = csv.writer(csvfile, dialect='excel')

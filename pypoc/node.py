@@ -186,13 +186,15 @@ class Node:
         LOGGER.debug(f'Destination node list: {self.dest_node_list}')
         LOGGER.debug(f'Edges: {self.edges}')
 
-    @abstractmethod
     def transmit(self, network):
-        pass
+        """abstract metho
+        """
+        LOGGER.error('No transmit method implemented!')
 
-    @abstractmethod
     def relay(self, network):
-        pass
+        """abstract method
+        """
+        LOGGER.error('No transmit method implemented!')
 
     def receive(self, network, received_packet):
         '''
@@ -215,7 +217,6 @@ class Node:
         self.update_queue(network)
         self.update_data()
 
-    @abstractmethod
     def reset_values(self, network):
         pass
 

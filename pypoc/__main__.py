@@ -2,6 +2,7 @@
 Main entry script for PyPoc. Reads the config and
 creates & runs a Network.
 '''
+import os
 import toml
 import argparse
 import shutil
@@ -38,31 +39,11 @@ configuration = toml.load(args.config)
 if args.run:
     title = configuration["title"]
     # Copy file
-    shutil.copyfile(args.config, f'./simulation_data/{title}.toml')
+    shutil.copyfile(args.config, f'./output_data/{title}.toml')
     # Create simulation data file
-    # data_filename = f'{title}_{datetime.now().strftime("%d%b%y_%H_%M_%S")}.csv'
-    data_filename = f'{title}.csv'
-    Path('./simulation_data/'+data_filename).touch()
+    data_filename = f'{title}_{datetime.now().strftime("%d%b%y_%H_%M_%S")}.csv'
+    # data_filename = f'{title}.csv'
+    Path('./output_data/'+data_filename).touch()
 
     new = network.PyPocNetwork()
     new.run_network_with(configuration, **{'filename': data_filename})
-elif args.plot:
-    # TODO: Distribute plotting actions -- if more than one (other than all) are speicifed, plot them.
-    if args.all:
-        plotter.plot_all()
-    elif args.packets:
-        if args.datafile:
-            plotter.plot_packet_simple(more_filepaths=[args.datafile, args.datafile2, args.datafile3, args.datafile4])
-        else:
-            plotter.plot_packet_simple()
-    elif args.queue:
-        if args.datafile:
-            plotter.plot_queue_simple(more_filepaths=[args.datafile, args.datafile2, args.datafile3, args.datafile4])
-        else:
-            plotter.plot_queue_simple()
-    elif args.throughput:
-        plotter.plot_throughputs()
-    elif args.droprate:
-        plotter.plot_drop_rate()
-    elif args.topology:
-        plotter.plot_network_graph(configuration)
