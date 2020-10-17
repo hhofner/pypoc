@@ -6,7 +6,7 @@ A Simplified Discrete Event Simulator for Heterogeneous Wireless Networks.
 2. Ensure a Python version of 3.6 or higher.
 3. Install conda (mini-conda) and pip.
 4. Create a new conda env with:
-```
+```bash
 conda env create -f environment.yml
 ```
 
@@ -15,25 +15,25 @@ To run the simulation:
 1. Edit the configuration files: `config.toml` and `config.py` if running a Deep Q-Learning Network
 2. Run this script from the PyPoc directory:
 
-```
+```bash
 python -m pypoc --run
 ```
 
 to run the simulation with a different config file, use the `--config` flag:
 
-```
+```bash
 python -m pypoc --run --config your/config.toml
 ```
 
 ## Configuration
 
 The simulation parameters are contained in the `config.toml` file. Copy the `template_config.toml` file and edit it to fit your simulation:
-```
+```bash
 cp template_config.toml config.toml
 ```
 
 Copy the `config.py` file if you plan to use the Q-Node (Q-Learning Based Node):
-```
+```bash
 cp template_config.py config.py
 ```
 
