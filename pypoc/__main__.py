@@ -32,7 +32,7 @@ parser.add_argument('--datafile4', nargs='*', help='Data files to plot.', defaul
 
 parser.add_argument('--run', action='store_true', help='Run a simulation.')
 parser.add_argument('--config', default='config.toml', help='Specific configuration file, optional.')
-parser.add_argument('--output_dir', default='/Users/hhofner/Documents/PyPoc/output_data')
+parser.add_argument('--output_dir', default='/Users/hhofner/Documents/katolab/PyPoc/output_data')
 
 args = parser.parse_args()
 configuration = toml.load(args.config)
