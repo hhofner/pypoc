@@ -10,20 +10,25 @@ A Simplified Discrete Event Simulator for Heterogeneous Wireless Networks.
 conda env create -f environment.yml
 ```
 
+NOTE: PyPoc assumes a unix environment (usage of '/' slashes, no smart path creation is used)
+
 ## Usage
 To run the simulation:
 1. Edit the configuration files: `config.toml` and `config.py` if running a Deep Q-Learning Network
 2. Run this script from the PyPoc directory:
 
 ```bash
-python -m pypoc --run
+python -m pypoc --run --output_dir full/path/to/output/dir
 ```
 
 to run the simulation with a different config file, use the `--config` flag:
 
 ```bash
-python -m pypoc --run --config your/config.toml
+python -m pypoc --run --config your/config.toml --output_dir full/path/to/output/dir
 ```
+
+PyPoc will make a copy of your configuration into the specified output directory, as well as
+put the generated data file in that directory (.csv).
 
 ## Configuration
 
