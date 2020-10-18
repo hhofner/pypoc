@@ -72,6 +72,7 @@ class QNode(RestrictedMovingNode):
         super().initalize_data()
         self.data.update({'memory_set': []})
         self.data.update({'loss':[]})
+        self.data.update({'q-values':[]})
 
     def relay(self, network):
         LOGGER.debug(f'Relaying network from A Q-NODE node: {self}')
@@ -88,6 +89,7 @@ class QNode(RestrictedMovingNode):
             self.policy_net = self.policy_net.float()
             LOGGER.debug(f'Raw output from policy_net(state): {self.policy_net(self.state.float())}')
             selected_action = self.policy_net(self.state.float()).max(0)[1].view(1, 1)
+            self.data['q-values'].append(self.policy_net(self.state.float()).tolist())
             offload = bool(selected_action[0][0])
             LOGGER.debug(f'Selected action from policy net: {"offload" if offload else "dont_offload"}')
         else:
