@@ -32,6 +32,7 @@ parser.add_argument('--datafile4', nargs='*', help='Data files to plot.', defaul
 
 parser.add_argument('--run', action='store_true', help='Run a simulation.')
 parser.add_argument('--config', default='config.toml', help='Specific configuration file, optional.')
+parser.add_argument('--output_dir', default='/Users/hhofner/Documents/PyPoc/output_data')
 
 args = parser.parse_args()
 configuration = toml.load(args.config)
@@ -39,11 +40,11 @@ configuration = toml.load(args.config)
 if args.run:
     title = configuration["title"]
     # Copy file
-    shutil.copyfile(args.config, f'./output_data/{title}.toml')
+    shutil.copyfile(args.config, f'{args.output_dir}/{title}.toml')
     # Create simulation data file
     data_filename = f'{title}_{datetime.now().strftime("%d%b%y_%H_%M_%S")}.csv'
     # data_filename = f'{title}.csv'
-    Path('./output_data/'+data_filename).touch()
+    Path(f'{args.output_dir}/'+data_filename).touch()
 
     new = network.PyPocNetwork()
     new.run_network_with(configuration, **{'filename': data_filename})
