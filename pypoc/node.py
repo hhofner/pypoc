@@ -17,6 +17,7 @@ import os
 
 import pypoc.models as models
 import networkx as nx
+import torch
 
 logging.basicConfig(level=logging.ERROR)
 LOGGER = logging.getLogger(__name__)
