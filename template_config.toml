@@ -46,7 +46,7 @@ connected-to = [ "uav-base-stations", "dest-nodes"]
 [nodes.leo-satellites]
 type = 1
 count = 2
-position = [ [ 0, 0, 1000,],]
+position = [ [ 0, 0, 1000,],[ 25, 25, 1000,]]
 movement = "none"
 connected-to = [ "q-stations", "base-stations", "uav-base-stations"]
 
