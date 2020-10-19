@@ -1,5 +1,5 @@
 ''' Script needs to be run from 
-root dir PyPoc/ (not PyPoc/pypoc)
+root dir PyPoc/ (not PyPoc/multi_sim_scripts)
 '''
 import toml
 import os
@@ -89,6 +89,9 @@ class MultiSim:
             except:
                 print('Couldnt run for config {config_file}')
                 error_files.append(config_file)
+            except KeyboardInterrupt:
+                print('Detected keyboard interrupt, quitting')
+                break
             else:
                 print(f'Done! Removing {config_file}')
                 os.remove(config_file)
