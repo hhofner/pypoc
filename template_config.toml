@@ -1,30 +1,94 @@
-title = "Network Title"
-author = "Name of Author"
+title = "base_config"
+author = "Hans Hofner"
 
-# Global parameters that apply to the entire network.
 [global]
-    link-foundation = 'distance'  # How are links to be connected?
-    packet-size = 125  # Packet size should be in Bytes; 125 Bytes = 1000 bits = 1Kb
-    minutes = 1
-    [global.link-foundation-params]  # If you decide to create a special type of link foundation, you can create specific params for it.
-        distance-threshold = 'none'  # This tells whether a link is valid or not by a particular distance threshold, like 5km.
-        your-own-foundation-params = 'none'
-[nodes]
-# Here you define the different type of nodes that are to be in the network. For example "UAV-Base-Station" or "User-Equipment".
-# each node can be one of three types, a "source node", a "relay node" or a "destination node".
-# It is assumed that source nodes are sending packages to destination nodes.
-    [nodes.special-name-of-node]
-        type = 0  # 0 for source, 1 for relay, 2 for destination.
-        count = 30  # How many of these nodes will exist?
-        position = 'random'  # TODO: What are their starting positions? 
-        movement = 'none'  # TODO: What are their movement patterns?
-        # Defines direct connections
-        connected-to = ['another-special-name-of-node', 'yet-another-special-name-of-node']  # What nodes can these node create links to?
-        [nodes.special-name-of-node.params]
-            buffer-size = 0  # Buffer size in Bytes
-            uplink-bandwidth = 'none'
-            downlink-bandwidth = 5_000_000
-            generation-rate = 1_000 # If the node is sending packages, what is the rate it can send them? #TODO: Be useful for relays as well.
+link-foundation = "distance"
+packet-size = 1000000
+minutes = 1
+increase-time = 3
+increase-rate = 0
+
 [area]
-    width = 10  #in km
-    height = 10
+width = 120
+height = 120
+
+[global.link-foundation-params]
+distance-threshold = "none"
+
+[nodes.src-nodes]
+type = 0
+count = 100
+position = "ue-random"
+movement = "WALKING_WAYPOINT"
+connected-to = [ "base-stations", "uav-base-stations", "q-stations"]
+
+[nodes.base-stations]
+type = 1
+count = 8
+position = [ [ -85.0, 0.0, 0.0,], [ 47.0, 5.0, 0.0,], [ 0.0, 55.0, 0.0,], [ 0.0, -66.0, 0.0,], [ 7.3, 0.3, 0.0,],[74.0, 78.4, 0.0], [5.0, 100.0, 0.0], [-37.0, 23.0, 0.0]]
+movement = "none"
+connected-to = ["base-stations","uav-base-stations", "dest-nodes", "q-stations"]
+
+[nodes.q-stations]
+type = 1
+count = 0
+position = [ [ -85.0, 0.0, 0.0,], [ 47.0, 5.0, 0.0,], [ 0.0, 55.0, 0.0,], [ 0.0, -66.0, 0.0,], [ 7.3, 0.3, 0.0,], [74.0, 78.4, 0.0], [5.0, 100.0, 0.0], [-37.0, 23.0, 0.0]]
+movement = "none"
+connected-to = ["base-stations", "leo-satellites", "uav-base-stations", "dest-nodes", "q-stations"]
+
+[nodes.uav-base-stations]
+type = 1
+count = 2
+position = [ [ -60.5, -48.4, 5.0,], [ 70.32, -44.6, 5.0,], [ -36.7, 31.2, 5.0,], [50.0, 60.0, 5.0], [0.0, 0.0, 5.0], [-34.0, 86.7, 5.0]]
+movement = "none"
+connected-to = [ "uav-base-stations", "dest-nodes"]
+
+[nodes.leo-satellites]
+type = 1
+count = 2
+position = [ [ 0, 0, 1000,],]
+movement = "none"
+connected-to = [ "q-stations", "base-stations", "uav-base-stations"]
+
+[nodes.dest-nodes]
+type = 2
+count = 20
+position = "ue-random"
+movement = "none"
+connected-to = []
+
+[nodes.src-nodes.params]
+buffer-size = 0
+uplink-bandwidth = "none"
+downlink-bandwidth = 1875000
+generation-rate = 1000000
+
+[nodes.base-stations.params]
+buffer-size = 160000000
+uplink-bandwidth = "none"
+downlink-bandwidth = 10000000
+generation-rate = "none"
+
+[nodes.q-stations.params]
+buffer-size = 160000000
+uplink-bandwidth = "none"
+downlink-bandwidth = 10000000
+generation-rate = "none"
+
+[nodes.uav-base-stations.params]
+buffer-size = 150000000
+uplink-bandwidth = "none"
+downlink-bandwidth = 7500000
+generation-rate = "none"
+
+[nodes.leo-satellites.params]
+buffer-size = 45000000
+uplink-bandwidth = "none"
+downlink-bandwidth = 18750000
+generation-rate = "none"
+
+[nodes.dest-nodes.params]
+buffer-size = 80000000000000
+uplink-bandwidth = "none"
+downlink-bandwidth = "none"
+generation-rate = "none"
