@@ -43,8 +43,8 @@ if args.run:
     shutil.copyfile(args.config, f'{args.output_dir}/{title}.toml')
     # Create simulation data file
     data_filename = f'{title}_{datetime.now().strftime("%d%b%y_%H_%M_%S")}.csv'
-    # data_filename = f'{title}.csv'
-    Path(f'{args.output_dir}/'+data_filename).touch()
+    data_filepath = os.path.join(args.output_dir, data_filename)
+    Path(data_filepath).touch()
 
     new = network.PyPocNetwork()
-    new.run_network_with(configuration, **{'filename': data_filename})
+    new.run_network_with(configuration, **{'filename': data_filepath})
